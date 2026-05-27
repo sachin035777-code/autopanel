@@ -1,9 +1,691 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Automation Panel</title>
+<meta charset="UTF-8">
+<title>AutoPanel</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+<style>
+*{box-sizing:border-box;}
+body{background:#0f1117;color:#e0e0e0;font-family:'Segoe UI',sans-serif;margin:0;}
+.navbar{background:#12151f;border-bottom:1px solid #2a2d3a;padding:0 20px;height:50px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:999;}
+.logo{display:flex;align-items:center;gap:8px;}
+.logo-icon{width:28px;height:28px;background:#4a90e2;border-radius:7px;display:flex;align-items:center;justify-content:center;}
+.nav-tabs-custom{display:flex;gap:2px;list-style:none;margin:0;padding:0;}
+.nav-tab-item{padding:6px 14px;border-radius:6px;font-size:13px;cursor:pointer;color:#666;transition:all .15s;}
+.nav-tab-item:hover{background:#1e2130;color:#aaa;}
+.nav-tab-item.active{background:#4a90e2;color:#fff;}
+.main{padding:20px;}
+.page{display:none;}
+.page.active{display:block;}
+.card{background:#1a1d27;border:1px solid #2a2d3a;border-radius:12px;}
+.stat-box{background:#1e2130;border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:14px;}
+.stat-icon{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;}
+.stat-val{font-size:1.7rem;font-weight:500;line-height:1;}
+.stat-lbl{font-size:11px;color:#666;margin-top:3px;}
+.badge-run{background:#1a7a45;color:#6effa0;}
+.badge-idle{background:#1e2130;color:#666;border:1px solid #2a2d3a;}
+.badge-err{background:#5a2020;color:#ff9090;}
+.badge-off{background:#111;color:#333;}
+.badge-upd{background:#1a3a6a;color:#90c8ff;}
+.badge-success{background:#1a7a45;color:#6effa0;}
+.badge-failed{background:#5a2020;color:#ff9090;}
+.badge-pending{background:#1e2130;color:#666;}
+.badge-assigned{background:#1a3a6a;color:#90c8ff;}
+table{font-size:12px;}
+thead th{background:#12151f;color:#666;font-weight:400;border:none;padding:9px 12px;}
+tbody td{padding:9px 12px;vertical-align:middle;border-color:#1e2130;}
+tbody tr:hover{background:#1e2130;}
+.form-control,.form-select,.form-control:focus,.form-select:focus{background:#12151f!important;color:#ccc!important;border-color:#2a2d3a!important;box-shadow:none!important;}
+.log-box{background:#060810;border-radius:8px;padding:12px;height:220px;overflow-y:auto;font-family:monospace;font-size:11px;line-height:1.9;}
+.log-INFO{color:#5a8a5a;}
+.log-ERROR{color:#ff6b6b;}
+.log-WARN{color:#ffd93d;}
+.code-editor{width:100%;background:#060810;border:1px solid #2a2d3a;color:#6effa0;border-radius:8px;padding:12px;font-size:12px;font-family:monospace;outline:none;resize:vertical;line-height:1.8;}
+.code-editor:focus{border-color:#4a90e2;}
+.detail-wrap{background:#080a14;border:1px solid #1e2130;border-radius:8px;margin-top:0;padding:14px;}
+.dtab{font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;color:#666;background:#1a1d27;border:none;}
+.dtab.active{background:#4a90e2;color:#fff;}
+.progress{height:6px;background:#1e2130;border-radius:3px;}
+#toast-box{position:fixed;bottom:20px;right:20px;z-index:9999;}
+.ip-badge{background:#0a1a2a;color:#7ec8e3;font-family:monospace;font-size:11px;padding:2px 8px;border-radius:4px;}
+.history-item{background:#12151f;border-radius:6px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:12px;}
+.section-lbl{font-size:10px;color:#444;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;}
+.prog-bar{height:8px;background:#1e2130;border-radius:4px;overflow:hidden;margin-top:4px;}
+.prog-fill{height:100%;background:#1abc9c;transition:width .5s;}
+</style>
 </head>
-<body style="background:black;color:white;text-align:center;padding-top:100px;">
-<h1>Automation Panel Running ✅</h1>
+<body>
+
+<nav class="navbar">
+  <div class="d-flex align-items-center gap-3">
+    <div class="logo">
+      <div class="logo-icon"><i class="bi bi-lightning-fill" style="color:#fff;font-size:14px;"></i></div>
+      <span style="color:#fff;font-weight:500;font-size:14px;">AutoPanel</span>
+    </div>
+    <ul class="nav-tabs-custom">
+      <li class="nav-tab-item active" id="tab-dashboard" onclick="showPage('dashboard',this)"><i class="bi bi-speedometer2"></i> Dashboard</li>
+      <li class="nav-tab-item" id="tab-system" onclick="showPage('system',this)"><i class="bi bi-pc-display"></i> System</li>
+      <li class="nav-tab-item" id="tab-database" onclick="showPage('database',this)"><i class="bi bi-database"></i> Database</li>
+      <li class="nav-tab-item" id="tab-scripts" onclick="showPage('scripts',this)"><i class="bi bi-code-slash"></i> Scripts</li>
+      <li class="nav-tab-item" id="tab-campaign" onclick="showPage('campaign',this)"><i class="bi bi-megaphone"></i> Campaign</li>
+    </ul>
+  </div>
+  <div class="d-flex align-items-center gap-3">
+    <span id="live-dot" style="font-size:12px;color:#666;"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#e74c3c;margin-right:5px;"></span>Connecting</span>
+    <span id="clk" style="color:#1abc9c;font-size:12px;font-weight:500;"></span>
+    <a href="/logout" style="color:#666;font-size:12px;text-decoration:none;"><i class="bi bi-box-arrow-right"></i> Logout</a>
+  </div>
+</nav>
+
+<div class="main">
+
+<!-- ═══ DASHBOARD ═══ -->
+<div class="page active" id="page-dashboard">
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3"><div class="stat-box"><div class="stat-icon" style="background:#1a3a6a"><i class="bi bi-pc-display" style="color:#90c8ff;"></i></div><div><div class="stat-val text-white" id="s-total">0</div><div class="stat-lbl">Total Systems</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-box"><div class="stat-icon" style="background:#1a7a45"><i class="bi bi-play-circle" style="color:#6effa0;"></i></div><div><div class="stat-val text-success" id="s-running">0</div><div class="stat-lbl">Running</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-box"><div class="stat-icon" style="background:#1a3a5a"><i class="bi bi-check-circle" style="color:#90c8ff;"></i></div><div><div class="stat-val text-info" id="s-success">0</div><div class="stat-lbl">Success</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-box"><div class="stat-icon" style="background:#5a2020"><i class="bi bi-x-circle" style="color:#ff9090;"></i></div><div><div class="stat-val text-danger" id="s-failed">0</div><div class="stat-lbl">Failed</div></div></div></div>
+  </div>
+  <div class="card p-3 mb-4">
+    <div class="section-lbl">Quick Control</div>
+    <div class="d-flex flex-wrap gap-2">
+      <button class="btn btn-success btn-sm" onclick="broadcast('start')"><i class="bi bi-play"></i> Start All</button>
+      <button class="btn btn-warning btn-sm" onclick="broadcast('stop')"><i class="bi bi-stop"></i> Stop All</button>
+      <button class="btn btn-info btn-sm"    onclick="broadcast('restart')"><i class="bi bi-arrow-clockwise"></i> Restart All</button>
+      <button class="btn btn-secondary btn-sm" onclick="broadcast('script_updated')"><i class="bi bi-download"></i> Update Script</button>
+    </div>
+  </div>
+  <div class="card p-0">
+    <div class="p-3 border-bottom border-dark section-lbl mb-0">Live Systems</div>
+    <div class="table-responsive"><table class="table mb-0">
+      <thead><tr><th>PC Name</th><th>Status</th><th>Task</th><th>CPU</th><th>RAM</th><th>Success</th><th>Failed</th><th>Last Seen</th><th>Action</th></tr></thead>
+      <tbody id="dash-tbody"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- ═══ SYSTEM ═══ -->
+<div class="page" id="page-system">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="section-lbl mb-0">System — Click karo detail dekho</div>
+    <input id="sys-search" type="text" placeholder="Search PC..." class="form-control form-control-sm" style="width:180px;" oninput="renderSystem()">
+  </div>
+  <div id="system-list"></div>
+</div>
+
+<!-- ═══ DATABASE ═══ -->
+<div class="page" id="page-database">
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card p-3 h-100">
+        <div class="section-lbl">CSV Data</div>
+        <div id="csv-info" class="text-secondary mb-2" style="font-size:12px;">Loading...</div>
+        <div class="prog-bar mb-2"><div class="prog-fill" id="db-prog" style="width:0%"></div></div>
+        <div style="font-size:11px;color:#555;" id="db-prog-text"></div>
+        <div class="d-flex gap-2 mt-2 flex-wrap">
+          <button class="btn btn-success btn-sm" onclick="document.getElementById('csv-upload-input').click()"><i class="bi bi-upload"></i> Upload</button>
+          <button class="btn btn-info btn-sm"    onclick="showCSVData()"><i class="bi bi-eye"></i> View</button>
+          <button class="btn btn-danger btn-sm"  onclick="clearCSVHistory()"><i class="bi bi-trash"></i> Clear History</button>
+        </div>
+        <input type="file" id="csv-upload-input" style="display:none;" accept=".csv" onchange="uploadCSV(this)">
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card p-3 h-100">
+        <div class="section-lbl">Image Folder</div>
+        <div id="img-info" class="text-secondary mb-3" style="font-size:12px;">Loading...</div>
+        <div class="d-flex gap-2 flex-wrap">
+          <button class="btn btn-success btn-sm" onclick="document.getElementById('img-upload-input').click()"><i class="bi bi-upload"></i> Upload</button>
+          <button class="btn btn-info btn-sm"    onclick="showImages()"><i class="bi bi-eye"></i> View All</button>
+          <button class="btn btn-danger btn-sm"  onclick="clearImages()"><i class="bi bi-trash"></i> Clear</button>
+        </div>
+        <input type="file" id="img-upload-input" style="display:none;" multiple accept="image/*" onchange="uploadImages(this)">
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card p-3 h-100">
+        <div class="section-lbl">IP Records</div>
+        <div id="ip-count" class="text-secondary mb-3" style="font-size:12px;">Loading...</div>
+        <div class="d-flex gap-2 flex-wrap">
+          <button class="btn btn-success btn-sm" onclick="document.getElementById('ip-upload-input').click()"><i class="bi bi-upload"></i> Upload IP CSV</button>
+          <button class="btn btn-danger btn-sm"  onclick="clearIPRecords()"><i class="bi bi-trash"></i> Clear</button>
+        </div>
+        <input type="file" id="ip-upload-input" style="display:none;" accept=".csv" onchange="uploadIPCSV(this)">
+      </div>
+    </div>
+  </div>
+
+  <!-- CSV Data Table -->
+  <div class="card p-0 mb-3" id="csv-data-section" style="display:none;">
+    <div class="p-3 border-bottom border-dark d-flex justify-content-between align-items-center">
+      <span class="section-lbl mb-0">CSV Data View</span>
+      <div class="d-flex gap-2">
+        <select id="csv-status-filter" class="form-select form-select-sm" style="width:120px;" onchange="filterCSV()">
+          <option value="">All</option>
+          <option value="PENDING">Pending</option>
+          <option value="SUCCESS">Success</option>
+          <option value="FAILED">Failed</option>
+        </select>
+        <button class="btn btn-outline-secondary btn-sm" onclick="document.getElementById('csv-data-section').style.display='none'">Close</button>
+      </div>
+    </div>
+    <div class="table-responsive"><table class="table mb-0">
+      <thead><tr><th>#</th><th>Name</th><th>Mobile</th><th>Email</th><th>Status</th><th>Worker</th></tr></thead>
+      <tbody id="csv-tbody"></tbody>
+    </table></div>
+  </div>
+
+  <!-- Images Grid -->
+  <div class="card p-3 mb-3" id="img-section" style="display:none;">
+    <div class="d-flex justify-content-between mb-2">
+      <span class="section-lbl mb-0">Images</span>
+      <button class="btn btn-outline-secondary btn-sm" onclick="document.getElementById('img-section').style.display='none'">Close</button>
+    </div>
+    <div id="img-grid" class="d-flex flex-wrap gap-2"></div>
+  </div>
+
+  <!-- IP Records Table -->
+  <div class="card p-0">
+    <div class="p-3 border-bottom border-dark d-flex justify-content-between">
+      <span class="section-lbl mb-0">IP Records — Script se aayi IPs</span>
+    </div>
+    <div class="table-responsive"><table class="table mb-0">
+      <thead><tr><th>PC Name</th><th>IP Address</th><th>Campaign</th><th>Script</th><th>Time</th></tr></thead>
+      <tbody id="ip-tbody"></tbody>
+    </table></div>
+  </div>
+
+  <!-- CSV History -->
+  <div class="card p-3 mt-3">
+    <div class="section-lbl">CSV Upload History</div>
+    <div id="csv-history-list"></div>
+  </div>
+</div>
+
+<!-- ═══ SCRIPTS ═══ -->
+<div class="page" id="page-scripts">
+  <div class="row g-3">
+    <div class="col-md-5">
+      <div class="card p-3">
+        <div class="section-lbl">Upload New Script</div>
+        <input type="file" id="script-file" accept=".py" class="form-control form-control-sm mb-2">
+        <input type="text" id="script-ver" value="1.0" placeholder="Version" class="form-control form-control-sm mb-2">
+        <textarea id="script-req" rows="3" placeholder="Requirements (optional)&#10;playwright&#10;requests" class="form-control form-control-sm mb-2" style="font-family:monospace;font-size:11px;"></textarea>
+        <input type="text" id="script-data-req" placeholder="Data needed: name,mobile,email" class="form-control form-control-sm mb-2">
+        <button class="btn btn-primary btn-sm w-100" onclick="uploadScript()"><i class="bi bi-cloud-upload"></i> Upload & Push to All PCs</button>
+        <div id="script-msg" class="mt-2" style="font-size:11px;color:#aaa;"></div>
+      </div>
+    </div>
+    <div class="col-md-7">
+      <div class="card p-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="section-lbl mb-0">Script Editor (Web)</div>
+          <div class="d-flex gap-2">
+            <input type="text" id="edit-ver" value="1.0" placeholder="v" class="form-control form-control-sm" style="width:70px;">
+            <button class="btn btn-success btn-sm" onclick="saveScript()"><i class="bi bi-save"></i> Save & Push All</button>
+          </div>
+        </div>
+        <textarea class="code-editor" id="code-editor" rows="16" placeholder="Script yahan dikhegi..."></textarea>
+      </div>
+    </div>
+  </div>
+  <div class="card p-3 mt-3">
+    <div class="section-lbl">Current Script Info</div>
+    <div id="script-info" style="font-size:13px;color:#666;">Loading...</div>
+  </div>
+</div>
+
+<!-- ═══ CAMPAIGN ═══ -->
+<div class="page" id="page-campaign">
+  <div class="row g-3 mb-3">
+    <div class="col-md-5">
+      <div class="card p-3">
+        <div class="section-lbl">New Campaign</div>
+        <input type="text" id="camp-name" placeholder="Campaign name" class="form-control form-control-sm mb-2">
+        <input type="text" id="camp-script" placeholder="Script name (e.g. frankfinn.py)" class="form-control form-control-sm mb-2">
+        <input type="text" id="camp-csv" placeholder="CSV file (e.g. master.csv)" class="form-control form-control-sm mb-2">
+        <input type="text" id="camp-url" placeholder="Target URL" class="form-control form-control-sm mb-2">
+        <button class="btn btn-primary btn-sm w-100" onclick="createCampaign()"><i class="bi bi-plus"></i> Create Campaign</button>
+      </div>
+    </div>
+    <div class="col-md-7">
+      <div class="card p-3">
+        <div class="section-lbl">Campaign List</div>
+        <div id="campaign-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+<div id="toast-box"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+let workers={},csvRows=[],ipRecords=[],allImages=[];
+
+// Clock
+setInterval(()=>{document.getElementById('clk').textContent=new Date().toLocaleTimeString();},1000);
+
+// Page nav
+function showPage(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab-item').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(el) el.classList.add('active');
+  if(id==='scripts') loadScript();
+  if(id==='database'){loadDBStats();loadIPRecords();loadCSVHistory();}
+  if(id==='campaign') loadCampaigns();
+}
+
+// Badge
+function badge(s){
+  const m={running:'badge-run',idle:'badge-idle',error:'badge-err',offline:'badge-off',updating:'badge-upd',
+           SUCCESS:'badge-success',FAILED:'badge-failed',PENDING:'badge-pending',assigned:'badge-assigned'};
+  return`<span class="badge ${m[s]||'badge-idle'} rounded-pill px-2" style="font-size:10px;">${s||'idle'}</span>`;
+}
+
+// CPU/RAM bar
+function bar(v){
+  v=v||0;const c=v>80?'#e74c3c':v>60?'#f39c12':'#1abc9c';
+  return`<div style="font-size:11px;">${v}%<div class="progress mt-1" style="height:4px;"><div class="progress-bar" style="width:${v}%;background:${c};"></div></div></div>`;
+}
+
+// Fetch workers
+async function fetchWorkers(){
+  try{
+    const d=await(await fetch('/api/workers')).json();
+    if(d.error)return;
+    Object.entries(d).forEach(([id,w])=>{workers[id]=w;});
+    updateStats();renderDash();renderSystem();
+    document.getElementById('live-dot').innerHTML='<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#1abc9c;margin-right:5px;box-shadow:0 0 5px #1abc9c;"></span>Live';
+  }catch(e){
+    document.getElementById('live-dot').innerHTML='<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#e74c3c;margin-right:5px;"></span>Offline';
+  }
+}
+
+function updateStats(){
+  const v=Object.values(workers);
+  document.getElementById('s-total').textContent=v.length;
+  document.getElementById('s-running').textContent=v.filter(w=>w.status==='running').length;
+  document.getElementById('s-success').textContent=v.reduce((a,w)=>a+(w.success||0),0);
+  document.getElementById('s-failed').textContent=v.reduce((a,w)=>a+(w.failed||0),0);
+}
+
+function renderDash(){
+  const rows=Object.entries(workers).sort(([a],[b])=>a.localeCompare(b));
+  document.getElementById('dash-tbody').innerHTML=rows.length
+    ?rows.map(([id,w])=>`<tr>
+      <td class="fw-semibold" style="font-size:12px;">${id}</td>
+      <td>${badge(w.status)}</td>
+      <td style="font-size:11px;color:#666;">${w.task||'—'}</td>
+      <td>${bar(w.cpu)}</td><td>${bar(w.ram)}</td>
+      <td class="text-success">${w.success||0}</td>
+      <td class="text-danger">${w.failed||0}</td>
+      <td style="font-size:11px;color:#555;">${w.last_seen||'—'}</td>
+      <td><div class="d-flex gap-1">
+        <button class="btn btn-outline-success btn-sm py-0" style="font-size:10px;" onclick="cmd('${id}','start')">Start</button>
+        <button class="btn btn-outline-warning btn-sm py-0" style="font-size:10px;" onclick="cmd('${id}','stop')">Stop</button>
+        <button class="btn btn-outline-info btn-sm py-0" style="font-size:10px;" onclick="showPage('system',document.getElementById('tab-system'));highlightPC('${id}')">View</button>
+      </div></td>
+    </tr>`).join('')
+    :`<tr><td colspan="9" class="text-center py-4" style="color:#444;">Koi system connected nahi — agent.py chalao</td></tr>`;
+}
+
+// System page
+let openDetail = null;
+function renderSystem(){
+  const q=(document.getElementById('sys-search')||{value:''}).value.toLowerCase();
+  const rows=Object.entries(workers).filter(([id])=>id.toLowerCase().includes(q)).sort(([a],[b])=>a.localeCompare(b));
+  const container=document.getElementById('system-list');
+  if(!container)return;
+  container.innerHTML=rows.length
+    ?rows.map(([id,w])=>`
+    <div class="card mb-2 p-0 overflow-hidden" id="sys-card-${id}">
+      <div class="p-3 d-flex align-items-center gap-3" style="cursor:pointer;" onclick="toggleDetail('${id}')">
+        <i class="bi bi-chevron-right" id="chev-${id}" style="color:#444;font-size:12px;transition:transform .2s;"></i>
+        <div style="flex:2;"><span class="fw-semibold" style="font-size:13px;">${id}</span></div>
+        <div style="flex:1;">${badge(w.status)}</div>
+        <div style="flex:1;font-size:11px;color:#666;">${w.task||'—'}</div>
+        <div style="flex:1;">${bar(w.cpu)}</div>
+        <div style="flex:1;">${bar(w.ram)}</div>
+        <div style="font-size:11px;color:#555;min-width:70px;">${w.last_seen||'—'}</div>
+        <div class="d-flex gap-1" onclick="event.stopPropagation()">
+          <button class="btn btn-success btn-sm py-0 px-2" style="font-size:10px;" onclick="cmd('${id}','start')"><i class="bi bi-play"></i></button>
+          <button class="btn btn-warning btn-sm py-0 px-2" style="font-size:10px;" onclick="cmd('${id}','stop')"><i class="bi bi-stop"></i></button>
+          <button class="btn btn-secondary btn-sm py-0 px-2" style="font-size:10px;" onclick="cmd('${id}','restart')"><i class="bi bi-arrow-clockwise"></i></button>
+        </div>
+      </div>
+      <div id="detail-${id}" style="display:none;border-top:1px solid #1e2130;">
+        <div style="background:#080a14;padding:12px;">
+          <div class="d-flex gap-2 mb-3" id="dtabs-${id}">
+            <button class="dtab active" onclick="switchDTab('${id}','cmd',this)">CMD Output</button>
+            <button class="dtab" onclick="switchDTab('${id}','url',this)">URL Settings</button>
+            <button class="dtab" onclick="switchDTab('${id}','edit',this)">Edit Script</button>
+            <button class="dtab" onclick="switchDTab('${id}','err',this)">Error Log</button>
+          </div>
+          <div id="dt-${id}-cmd">
+            <div class="log-box" id="log-${id}"><span style="color:#333;">Loading logs...</span></div>
+            <button class="btn btn-outline-secondary btn-sm mt-2" style="font-size:10px;" onclick="loadLogs('${id}')"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+          </div>
+          <div id="dt-${id}-url" style="display:none;">
+            <div style="font-size:11px;color:#555;margin-bottom:8px;">Is PC ke liye URL set karo — script mein apne aap update hoga</div>
+            <input class="form-control form-control-sm mb-2" id="url-${id}" placeholder="https://example.com/form?utm_source=...">
+            <div class="d-flex gap-2">
+              <button class="btn btn-success btn-sm" onclick="saveURL('${id}')"><i class="bi bi-check"></i> Save URL</button>
+              <button class="btn btn-primary btn-sm" onclick="cmd('${id}','reload_config')"><i class="bi bi-send"></i> Push to PC</button>
+            </div>
+          </div>
+          <div id="dt-${id}-edit" style="display:none;">
+            <div style="font-size:11px;color:#555;margin-bottom:8px;">Script edit karo — Save karo to sab PCs pe update</div>
+            <textarea class="code-editor" id="editor-${id}" rows="12"></textarea>
+            <div class="d-flex gap-2 mt-2">
+              <input type="text" id="ev-${id}" value="1.0" class="form-control form-control-sm" style="width:70px;" placeholder="v">
+              <button class="btn btn-success btn-sm" onclick="saveScriptFromSystem('${id}')"><i class="bi bi-save"></i> Save & Push All</button>
+            </div>
+          </div>
+          <div id="dt-${id}-err" style="display:none;">
+            <div class="log-box" id="err-${id}"><span style="color:#333;">Loading errors...</span></div>
+            <button class="btn btn-outline-secondary btn-sm mt-2" style="font-size:10px;" onclick="loadErrors('${id}')"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+          </div>
+        </div>
+      </div>
+    </div>`).join('')
+    :`<div class="card p-4 text-center" style="color:#444;">Koi system connected nahi</div>`;
+}
+
+async function toggleDetail(id){
+  const det=document.getElementById(`detail-${id}`);
+  const chev=document.getElementById(`chev-${id}`);
+  if(det.style.display==='none'){
+    det.style.display='block';
+    if(chev) chev.style.transform='rotate(90deg)';
+    loadLogs(id);
+    loadScriptIntoEditor(id);
+    loadURLForPC(id);
+  } else {
+    det.style.display='none';
+    if(chev) chev.style.transform='rotate(0deg)';
+  }
+}
+
+function switchDTab(id,tab,btn){
+  ['cmd','url','edit','err'].forEach(t=>{
+    const el=document.getElementById(`dt-${id}-${t}`);
+    if(el) el.style.display=t===tab?'block':'none';
+  });
+  document.querySelectorAll(`#dtabs-${id} .dtab`).forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(tab==='cmd') loadLogs(id);
+  if(tab==='err') loadErrors(id);
+}
+
+async function loadLogs(id){
+  try{
+    const d=await(await fetch(`/api/worker/${id}/logs`)).json();
+    const box=document.getElementById(`log-${id}`);
+    if(!box)return;
+    box.innerHTML=d.length
+      ?d.slice(-60).map(l=>`<div class="log-${l.level||'INFO'}">[${l.time||''}] ${l.msg||''}</div>`).join('')
+      :'<span style="color:#333;">No logs yet</span>';
+    box.scrollTop=box.scrollHeight;
+  }catch(e){}
+}
+
+async function loadErrors(id){
+  try{
+    const d=await(await fetch(`/api/worker/${id}/errors`)).json();
+    const box=document.getElementById(`err-${id}`);
+    if(!box)return;
+    box.innerHTML=d.length
+      ?d.slice(-40).map(l=>`<div class="log-ERROR">[${l.time||''}] ${l.msg||''}</div>`).join('')
+      :'<div style="color:#1abc9c;">No errors</div>';
+    box.scrollTop=box.scrollHeight;
+  }catch(e){}
+}
+
+async function loadScriptIntoEditor(id){
+  try{
+    const d=await(await fetch('/api/script/content')).json();
+    const ed=document.getElementById(`editor-${id}`);
+    if(ed) ed.value=d.content||'';
+  }catch(e){}
+}
+
+async function loadURLForPC(id){
+  try{
+    const d=await(await fetch('/api/pc-urls')).json();
+    const inp=document.getElementById(`url-${id}`);
+    if(inp && d[id]) inp.value=d[id];
+  }catch(e){}
+}
+
+async function saveURL(id){
+  const url=(document.getElementById(`url-${id}`)||{value:''}).value;
+  await fetch('/api/pc-url',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({worker_id:id,url})});
+  toast(`URL saved for ${id}`,'success');
+}
+
+async function saveScriptFromSystem(id){
+  const content=(document.getElementById(`editor-${id}`)||{value:''}).value;
+  const version=(document.getElementById(`ev-${id}`)||{value:'1.0'}).value;
+  const d=await(await fetch('/api/script/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content,version})})).json();
+  toast(d.message,'success');
+}
+
+function highlightPC(id){
+  setTimeout(()=>{
+    const card=document.getElementById(`sys-card-${id}`);
+    if(card){card.scrollIntoView({behavior:'smooth'});toggleDetail(id);}
+  },100);
+}
+
+// Script page
+async function loadScript(){
+  try{
+    const d=await(await fetch('/api/script/content')).json();
+    document.getElementById('code-editor').value=d.content||'';
+    const info=await(await fetch('/api/version')).json();
+    document.getElementById('edit-ver').value=info.version||'1.0';
+    document.getElementById('script-info').innerHTML=`
+      <span style="color:#fff;">Version:</span> v${info.version||'—'} &nbsp;|&nbsp;
+      <span style="color:#fff;">File:</span> ${info.filename||'—'} &nbsp;|&nbsp;
+      <span style="color:#fff;">Uploaded:</span> ${info.uploaded_at||'—'} &nbsp;|&nbsp;
+      <span style="color:#fff;">Data:</span> <span style="color:#ffd93d;">${info.data_required||'—'}</span>`;
+  }catch(e){}
+}
+
+async function uploadScript(){
+  const file=document.getElementById('script-file').files[0];
+  const ver=document.getElementById('script-ver').value||'1.0';
+  const req=document.getElementById('script-req').value;
+  const dr=document.getElementById('script-data-req').value;
+  if(!file){toast('Script select karo!','danger');return;}
+  const fd=new FormData();fd.append('file',file);fd.append('version',ver);
+  fd.append('requirements',req);fd.append('data_required',dr);
+  document.getElementById('script-msg').textContent='Uploading...';
+  const d=await(await fetch('/api/upload-script',{method:'POST',body:fd})).json();
+  document.getElementById('script-msg').textContent=d.message||'Done!';
+  toast(d.message,'success');loadScript();
+}
+
+async function saveScript(){
+  const content=document.getElementById('code-editor').value;
+  const version=document.getElementById('edit-ver').value||'1.0';
+  const d=await(await fetch('/api/script/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content,version})})).json();
+  toast(d.message,'success');
+}
+
+// Database
+async function loadDBStats(){
+  try{
+    const d=await(await fetch('/api/csv-status')).json();
+    if(d.error)return;
+    const pct=d.total>0?Math.round((d.done/d.total)*100):0;
+    document.getElementById('csv-info').textContent=`${d.total} rows | ${d.done} done | ${d.pending} pending | ${d.failed} failed`;
+    document.getElementById('db-prog').style.width=pct+'%';
+    document.getElementById('db-prog-text').textContent=`${pct}% complete`;
+    const imgs=await(await fetch('/api/images')).json();
+    document.getElementById('img-info').textContent=`${imgs.length} images | ${Math.round(imgs.reduce((a,i)=>a+i.size,0)/1024)}KB total`;
+    allImages=imgs;
+    const ips=await(await fetch('/api/ip-records')).json();
+    document.getElementById('ip-count').textContent=`${ips.length} IP records`;
+    ipRecords=ips;
+  }catch(e){}
+}
+
+async function showCSVData(){
+  const sec=document.getElementById('csv-data-section');
+  sec.style.display='block';
+  const d=await(await fetch('/api/csv-status')).json();
+  csvRows=d.rows||[];filterCSV();
+}
+
+function filterCSV(){
+  const f=document.getElementById('csv-status-filter').value;
+  const rows=f?csvRows.filter(r=>r.status===f):csvRows;
+  document.getElementById('csv-tbody').innerHTML=rows.length
+    ?rows.map(r=>`<tr><td>${r.index}</td><td>${r.name}</td><td><span class="ip-badge">${r.mobile}</span></td><td>${r.email}</td><td>${badge(r.status)}</td><td style="font-size:11px;color:#555;">${r.worker}</td></tr>`).join('')
+    :`<tr><td colspan="6" class="text-center py-3" style="color:#444;">Koi data nahi</td></tr>`;
+}
+
+function showImages(){
+  const sec=document.getElementById('img-section');
+  sec.style.display='block';
+  document.getElementById('img-grid').innerHTML=allImages.length
+    ?allImages.map(f=>`<div style="background:#12151f;border-radius:6px;padding:6px 10px;font-size:11px;color:#aaa;">${f.name}<br><span style="color:#555;">${Math.round(f.size/1024)}KB</span></div>`).join('')
+    :'<span style="color:#444;">No images</span>';
+}
+
+async function loadIPRecords(){
+  try{
+    const d=await(await fetch('/api/ip-records')).json();
+    document.getElementById('ip-tbody').innerHTML=d.length
+      ?d.slice(-50).map(r=>`<tr>
+        <td>${r.pc_name||r.worker_id||'—'}</td>
+        <td><span class="ip-badge">${r.ip||r.ip_address||'—'}</span></td>
+        <td>${r.campaign||'—'}</td>
+        <td>${r.script||'—'}</td>
+        <td style="font-size:11px;color:#555;">${r.time||r.timestamp||'—'}</td>
+      </tr>`).join('')
+      :`<tr><td colspan="5" class="text-center py-3" style="color:#444;">Koi IP record nahi</td></tr>`;
+  }catch(e){}
+}
+
+async function loadCSVHistory(){
+  try{
+    const d=await(await fetch('/api/csv-history')).json();
+    document.getElementById('csv-history-list').innerHTML=d.length
+      ?d.map(f=>`<div class="history-item"><span>${f.name}</span><span style="color:#555;">${Math.round(f.size/1024)}KB</span></div>`).join('')
+      :'<span style="color:#444;font-size:12px;">Koi history nahi</span>';
+  }catch(e){}
+}
+
+async function clearCSVHistory(){
+  if(!confirm('CSV history clear karo?'))return;
+  await fetch('/api/csv-history',{method:'DELETE'});
+  toast('CSV history cleared!','success');loadCSVHistory();
+}
+
+async function clearImages(){
+  if(!confirm('Sab images delete karo?'))return;
+  await fetch('/api/images',{method:'DELETE'});
+  toast('Images cleared!','success');loadDBStats();
+}
+
+async function clearIPRecords(){
+  if(!confirm('IP records clear karo?'))return;
+  await fetch('/api/ip-records',{method:'DELETE'});
+  toast('IP records cleared!','success');loadIPRecords();
+}
+
+async function uploadCSV(input){
+  const file=input.files[0];if(!file)return;
+  const fd=new FormData();fd.append('file',file);
+  const d=await(await fetch('/api/upload-csv',{method:'POST',body:fd})).json();
+  toast(d.message,'success');loadDBStats();loadCSVHistory();
+}
+
+async function uploadImages(input){
+  const files=input.files;if(!files.length)return;
+  const fd=new FormData();for(const f of files)fd.append('files',f);
+  const d=await(await fetch('/api/upload-images',{method:'POST',body:fd})).json();
+  toast(`${d.count} images uploaded!`,'success');loadDBStats();
+}
+
+async function uploadIPCSV(input){
+  const file=input.files[0];if(!file)return;
+  const fd=new FormData();fd.append('file',file);
+  const d=await(await fetch('/api/upload-ip-csv',{method:'POST',body:fd})).json();
+  toast(d.message,'success');loadIPRecords();
+}
+
+// Campaign
+async function loadCampaigns(){
+  try{
+    const d=await(await fetch('/api/campaigns')).json();
+    document.getElementById('campaign-list').innerHTML=d.length
+      ?d.map(c=>`<div style="background:#12151f;border-radius:8px;padding:12px;margin-bottom:8px;">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span style="font-weight:500;font-size:13px;">${c.name}</span>
+          ${badge(c.status==='active'?'running':'idle')}
+        </div>
+        <div style="font-size:11px;color:#555;margin-bottom:8px;">Script: ${c.script||'—'} | CSV: ${c.csv||'—'}</div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-success btn-sm py-0" style="font-size:10px;" onclick="startCampaign('${c.id}')">Start</button>
+          <button class="btn btn-warning btn-sm py-0" style="font-size:10px;" onclick="stopCampaign('${c.id}')">Stop</button>
+        </div>
+      </div>`).join('')
+      :'<span style="color:#444;font-size:12px;">Koi campaign nahi — create karo</span>';
+  }catch(e){}
+}
+
+async function createCampaign(){
+  const name=document.getElementById('camp-name').value;
+  const script=document.getElementById('camp-script').value;
+  const csv=document.getElementById('camp-csv').value;
+  const url=document.getElementById('camp-url').value;
+  if(!name){toast('Campaign naam do!','danger');return;}
+  await fetch('/api/campaigns',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name,script,csv,url})});
+  toast('Campaign created!','success');loadCampaigns();
+}
+
+async function startCampaign(id){
+  await fetch(`/api/campaigns/${id}/start`,{method:'POST'});
+  toast('Campaign started!','success');loadCampaigns();
+}
+
+async function stopCampaign(id){
+  await fetch(`/api/campaigns/${id}/stop`,{method:'POST'});
+  toast('Campaign stopped!','warning');loadCampaigns();
+}
+
+// Commands
+async function cmd(worker_id,command){
+  await fetch('/api/send-command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({worker_id,command})});
+  toast(`${command} → ${worker_id}`);
+}
+async function broadcast(command){
+  await fetch('/api/broadcast',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command})});
+  toast(`${command} → All PCs`,'success');
+}
+
+// Toast
+function toast(msg,type='primary'){
+  const el=document.createElement('div');
+  el.className=`toast align-items-center text-white bg-${type} border-0 mb-2 show`;
+  el.innerHTML=`<div class="d-flex"><div class="toast-body" style="font-size:13px;">${msg}</div></div>`;
+  document.getElementById('toast-box').appendChild(el);
+  setTimeout(()=>el.remove(),3000);
+}
+
+// Auto refresh
+fetchWorkers();
+setInterval(fetchWorkers,8000);
+</script>
 </body>
 </html>
