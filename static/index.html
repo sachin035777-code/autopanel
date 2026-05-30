@@ -33,6 +33,8 @@ body{background:#0f1117;color:#e0e0e0;font-family:'Segoe UI',sans-serif;margin:0
 .badge-failed{background:#5a2020;color:#ff9090;}
 .badge-pending{background:#1e2130;color:#666;}
 .badge-assigned{background:#1a3a6a;color:#90c8ff;}
+.badge-completed{background:#0d4a2a;color:#4effa0;}
+.badge-stopped{background:#3a2a00;color:#ffcc55;}
 table{font-size:12px;}
 thead th{background:#12151f;color:#666;font-weight:400;border:none;padding:9px 12px;}
 tbody td{padding:9px 12px;vertical-align:middle;border-color:#1e2130;}
@@ -44,7 +46,6 @@ tbody tr:hover{background:#1e2130;}
 .log-WARN{color:#ffd93d;}
 .code-editor{width:100%;background:#060810;border:1px solid #2a2d3a;color:#6effa0;border-radius:8px;padding:12px;font-size:12px;font-family:monospace;outline:none;resize:vertical;line-height:1.8;}
 .code-editor:focus{border-color:#4a90e2;}
-.detail-wrap{background:#080a14;border:1px solid #1e2130;border-radius:8px;margin-top:0;padding:14px;}
 .dtab{font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;color:#666;background:#1a1d27;border:none;}
 .dtab.active{background:#4a90e2;color:#fff;}
 .progress{height:6px;background:#1e2130;border-radius:3px;}
@@ -54,6 +55,44 @@ tbody tr:hover{background:#1e2130;}
 .section-lbl{font-size:10px;color:#444;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;}
 .prog-bar{height:8px;background:#1e2130;border-radius:4px;overflow:hidden;margin-top:4px;}
 .prog-fill{height:100%;background:#1abc9c;transition:width .5s;}
+
+/* Campaign History */
+.ch-card{background:#12151f;border:1px solid #2a2d3a;border-radius:10px;margin-bottom:10px;overflow:hidden;transition:border-color .2s;}
+.ch-card:hover{border-color:#3a4060;}
+.ch-header{padding:14px 16px;display:flex;align-items:center;gap:14px;cursor:pointer;}
+.ch-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.ch-meta{flex:1;min-width:0;}
+.ch-name{font-size:13px;font-weight:500;color:#d0d0d0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ch-sub{font-size:11px;color:#555;margin-top:2px;}
+.ch-stats{display:flex;gap:16px;align-items:center;flex-shrink:0;}
+.ch-stat{text-align:center;}
+.ch-stat-val{font-size:14px;font-weight:500;line-height:1;}
+.ch-stat-lbl{font-size:10px;color:#555;margin-top:2px;}
+.ch-detail{display:none;border-top:1px solid #1e2130;background:#0c0e18;}
+.ch-detail.open{display:block;}
+.ch-detail-inner{padding:16px;}
+.ch-tab-bar{display:flex;gap:4px;margin-bottom:14px;}
+.ch-tab{font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;color:#555;background:#1a1d27;border:none;transition:all .15s;}
+.ch-tab.active{background:#4a90e2;color:#fff;}
+.ch-tab-content{display:none;}
+.ch-tab-content.active{display:block;}
+.ch-mini-log{background:#060810;border-radius:6px;padding:10px;height:180px;overflow-y:auto;font-family:monospace;font-size:11px;line-height:1.8;}
+.ch-worker-row{background:#1a1d27;border-radius:6px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:12px;}
+.ch-timeline{border-left:2px solid #2a2d3a;padding-left:14px;margin-left:6px;}
+.ch-tl-item{position:relative;margin-bottom:12px;}
+.ch-tl-dot{width:8px;height:8px;border-radius:50%;background:#4a90e2;position:absolute;left:-19px;top:4px;}
+.ch-tl-dot.success{background:#1abc9c;}
+.ch-tl-dot.error{background:#e74c3c;}
+.ch-tl-dot.warn{background:#f39c12;}
+.ch-tl-text{font-size:11px;color:#888;line-height:1.5;}
+.ch-tl-time{font-size:10px;color:#444;margin-top:2px;}
+.filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.ch-empty{text-align:center;padding:40px;color:#333;font-size:13px;}
+.ch-summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
+.ch-summary-box{background:#1a1d27;border-radius:8px;padding:10px 12px;text-align:center;}
+.ch-summary-val{font-size:18px;font-weight:500;}
+.ch-summary-lbl{font-size:10px;color:#555;margin-top:2px;}
+.duration-badge{background:#1a2a3a;color:#5a9adf;font-size:10px;padding:2px 8px;border-radius:4px;font-family:monospace;}
 </style>
 </head>
 <body>
@@ -70,6 +109,7 @@ tbody tr:hover{background:#1e2130;}
       <li class="nav-tab-item" id="tab-database" onclick="showPage('database',this)"><i class="bi bi-database"></i> Database</li>
       <li class="nav-tab-item" id="tab-scripts" onclick="showPage('scripts',this)"><i class="bi bi-code-slash"></i> Scripts</li>
       <li class="nav-tab-item" id="tab-campaign" onclick="showPage('campaign',this)"><i class="bi bi-megaphone"></i> Campaign</li>
+      <li class="nav-tab-item" id="tab-history" onclick="showPage('history',this)"><i class="bi bi-clock-history"></i> History</li>
     </ul>
   </div>
   <div class="d-flex align-items-center gap-3">
@@ -81,7 +121,7 @@ tbody tr:hover{background:#1e2130;}
 
 <div class="main">
 
-<!-- ═══ DASHBOARD ═══ -->
+<!-- DASHBOARD -->
 <div class="page active" id="page-dashboard">
   <div class="row g-3 mb-4">
     <div class="col-6 col-md-3"><div class="stat-box"><div class="stat-icon" style="background:#1a3a6a"><i class="bi bi-pc-display" style="color:#90c8ff;"></i></div><div><div class="stat-val text-white" id="s-total">0</div><div class="stat-lbl">Total Systems</div></div></div></div>
@@ -94,7 +134,7 @@ tbody tr:hover{background:#1e2130;}
     <div class="d-flex flex-wrap gap-2">
       <button class="btn btn-success btn-sm" onclick="broadcast('start')"><i class="bi bi-play"></i> Start All</button>
       <button class="btn btn-warning btn-sm" onclick="broadcast('stop')"><i class="bi bi-stop"></i> Stop All</button>
-      <button class="btn btn-info btn-sm"    onclick="broadcast('restart')"><i class="bi bi-arrow-clockwise"></i> Restart All</button>
+      <button class="btn btn-info btn-sm" onclick="broadcast('restart')"><i class="bi bi-arrow-clockwise"></i> Restart All</button>
       <button class="btn btn-secondary btn-sm" onclick="broadcast('script_updated')"><i class="bi bi-download"></i> Update Script</button>
     </div>
   </div>
@@ -107,7 +147,7 @@ tbody tr:hover{background:#1e2130;}
   </div>
 </div>
 
-<!-- ═══ SYSTEM ═══ -->
+<!-- SYSTEM -->
 <div class="page" id="page-system">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div class="section-lbl mb-0">System — Click karo detail dekho</div>
@@ -116,7 +156,7 @@ tbody tr:hover{background:#1e2130;}
   <div id="system-list"></div>
 </div>
 
-<!-- ═══ DATABASE ═══ -->
+<!-- DATABASE -->
 <div class="page" id="page-database">
   <div class="row g-3 mb-4">
     <div class="col-md-4">
@@ -127,8 +167,8 @@ tbody tr:hover{background:#1e2130;}
         <div style="font-size:11px;color:#555;" id="db-prog-text"></div>
         <div class="d-flex gap-2 mt-2 flex-wrap">
           <button class="btn btn-success btn-sm" onclick="document.getElementById('csv-upload-input').click()"><i class="bi bi-upload"></i> Upload</button>
-          <button class="btn btn-info btn-sm"    onclick="showCSVData()"><i class="bi bi-eye"></i> View</button>
-          <button class="btn btn-danger btn-sm"  onclick="clearCSVHistory()"><i class="bi bi-trash"></i> Clear History</button>
+          <button class="btn btn-info btn-sm" onclick="showCSVData()"><i class="bi bi-eye"></i> View</button>
+          <button class="btn btn-danger btn-sm" onclick="clearCSVHistory()"><i class="bi bi-trash"></i> Clear History</button>
         </div>
         <input type="file" id="csv-upload-input" style="display:none;" accept=".csv" onchange="uploadCSV(this)">
       </div>
@@ -139,8 +179,8 @@ tbody tr:hover{background:#1e2130;}
         <div id="img-info" class="text-secondary mb-3" style="font-size:12px;">Loading...</div>
         <div class="d-flex gap-2 flex-wrap">
           <button class="btn btn-success btn-sm" onclick="document.getElementById('img-upload-input').click()"><i class="bi bi-upload"></i> Upload</button>
-          <button class="btn btn-info btn-sm"    onclick="showImages()"><i class="bi bi-eye"></i> View All</button>
-          <button class="btn btn-danger btn-sm"  onclick="clearImages()"><i class="bi bi-trash"></i> Clear</button>
+          <button class="btn btn-info btn-sm" onclick="showImages()"><i class="bi bi-eye"></i> View All</button>
+          <button class="btn btn-danger btn-sm" onclick="clearImages()"><i class="bi bi-trash"></i> Clear</button>
         </div>
         <input type="file" id="img-upload-input" style="display:none;" multiple accept="image/*" onchange="uploadImages(this)">
       </div>
@@ -151,23 +191,18 @@ tbody tr:hover{background:#1e2130;}
         <div id="ip-count" class="text-secondary mb-3" style="font-size:12px;">Loading...</div>
         <div class="d-flex gap-2 flex-wrap">
           <button class="btn btn-success btn-sm" onclick="document.getElementById('ip-upload-input').click()"><i class="bi bi-upload"></i> Upload IP CSV</button>
-          <button class="btn btn-danger btn-sm"  onclick="clearIPRecords()"><i class="bi bi-trash"></i> Clear</button>
+          <button class="btn btn-danger btn-sm" onclick="clearIPRecords()"><i class="bi bi-trash"></i> Clear</button>
         </div>
         <input type="file" id="ip-upload-input" style="display:none;" accept=".csv" onchange="uploadIPCSV(this)">
       </div>
     </div>
   </div>
-
-  <!-- CSV Data Table -->
   <div class="card p-0 mb-3" id="csv-data-section" style="display:none;">
     <div class="p-3 border-bottom border-dark d-flex justify-content-between align-items-center">
       <span class="section-lbl mb-0">CSV Data View</span>
       <div class="d-flex gap-2">
         <select id="csv-status-filter" class="form-select form-select-sm" style="width:120px;" onchange="filterCSV()">
-          <option value="">All</option>
-          <option value="PENDING">Pending</option>
-          <option value="SUCCESS">Success</option>
-          <option value="FAILED">Failed</option>
+          <option value="">All</option><option value="PENDING">Pending</option><option value="SUCCESS">Success</option><option value="FAILED">Failed</option>
         </select>
         <button class="btn btn-outline-secondary btn-sm" onclick="document.getElementById('csv-data-section').style.display='none'">Close</button>
       </div>
@@ -177,8 +212,6 @@ tbody tr:hover{background:#1e2130;}
       <tbody id="csv-tbody"></tbody>
     </table></div>
   </div>
-
-  <!-- Images Grid -->
   <div class="card p-3 mb-3" id="img-section" style="display:none;">
     <div class="d-flex justify-content-between mb-2">
       <span class="section-lbl mb-0">Images</span>
@@ -186,26 +219,20 @@ tbody tr:hover{background:#1e2130;}
     </div>
     <div id="img-grid" class="d-flex flex-wrap gap-2"></div>
   </div>
-
-  <!-- IP Records Table -->
   <div class="card p-0">
-    <div class="p-3 border-bottom border-dark d-flex justify-content-between">
-      <span class="section-lbl mb-0">IP Records — Script se aayi IPs</span>
-    </div>
+    <div class="p-3 border-bottom border-dark"><span class="section-lbl mb-0">IP Records — Script se aayi IPs</span></div>
     <div class="table-responsive"><table class="table mb-0">
       <thead><tr><th>PC Name</th><th>IP Address</th><th>Campaign</th><th>Script</th><th>Time</th></tr></thead>
       <tbody id="ip-tbody"></tbody>
     </table></div>
   </div>
-
-  <!-- CSV History -->
   <div class="card p-3 mt-3">
     <div class="section-lbl">CSV Upload History</div>
     <div id="csv-history-list"></div>
   </div>
 </div>
 
-<!-- ═══ SCRIPTS ═══ -->
+<!-- SCRIPTS -->
 <div class="page" id="page-scripts">
   <div class="row g-3">
     <div class="col-md-5">
@@ -213,7 +240,7 @@ tbody tr:hover{background:#1e2130;}
         <div class="section-lbl">Upload New Script</div>
         <input type="file" id="script-file" accept=".py" class="form-control form-control-sm mb-2">
         <input type="text" id="script-ver" value="1.0" placeholder="Version" class="form-control form-control-sm mb-2">
-        <textarea id="script-req" rows="3" placeholder="Requirements (optional)&#10;playwright&#10;requests" class="form-control form-control-sm mb-2" style="font-family:monospace;font-size:11px;"></textarea>
+        <textarea id="script-req" rows="3" placeholder="Requirements (optional)" class="form-control form-control-sm mb-2" style="font-family:monospace;font-size:11px;"></textarea>
         <input type="text" id="script-data-req" placeholder="Data needed: name,mobile,email" class="form-control form-control-sm mb-2">
         <button class="btn btn-primary btn-sm w-100" onclick="uploadScript()"><i class="bi bi-cloud-upload"></i> Upload & Push to All PCs</button>
         <div id="script-msg" class="mt-2" style="font-size:11px;color:#aaa;"></div>
@@ -238,7 +265,7 @@ tbody tr:hover{background:#1e2130;}
   </div>
 </div>
 
-<!-- ═══ CAMPAIGN ═══ -->
+<!-- CAMPAIGN -->
 <div class="page" id="page-campaign">
   <div class="row g-3 mb-3">
     <div class="col-md-5">
@@ -260,17 +287,48 @@ tbody tr:hover{background:#1e2130;}
   </div>
 </div>
 
-</div><!-- /main -->
+<!-- CAMPAIGN HISTORY -->
+<div class="page" id="page-history">
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3"><div class="stat-box"><div class="stat-icon" style="background:#1a3a4a"><i class="bi bi-clock-history" style="color:#90c8ff;"></i></div><div><div class="stat-val text-white" id="hs-total">0</div><div class="stat-lbl">Total Campaigns</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-box"><div class="stat-icon" style="background:#1a7a45"><i class="bi bi-check2-all" style="color:#6effa0;"></i></div><div><div class="stat-val text-success" id="hs-success">0</div><div class="stat-lbl">Total Success Rows</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-box"><div class="stat-icon" style="background:#5a2020"><i class="bi bi-x-circle" style="color:#ff9090;"></i></div><div><div class="stat-val text-danger" id="hs-failed">0</div><div class="stat-lbl">Total Failed Rows</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-box"><div class="stat-icon" style="background:#1a3a6a"><i class="bi bi-people" style="color:#90c8ff;"></i></div><div><div class="stat-val text-info" id="hs-workers">0</div><div class="stat-lbl">Workers Used</div></div></div></div>
+  </div>
+
+  <div class="card p-3 mb-3">
+    <div class="filter-bar">
+      <div class="section-lbl mb-0" style="white-space:nowrap;">Filter:</div>
+      <select id="hist-status-filter" class="form-select form-select-sm" style="width:130px;" onchange="renderHistory()">
+        <option value="">All Status</option>
+        <option value="completed">Completed</option>
+        <option value="stopped">Stopped</option>
+        <option value="failed">Failed</option>
+        <option value="running">Running</option>
+      </select>
+      <input type="text" id="hist-search" class="form-control form-control-sm" style="width:180px;" placeholder="Search campaign / script..." oninput="renderHistory()">
+      <input type="date" id="hist-date-from" class="form-control form-control-sm" style="width:140px;" onchange="renderHistory()">
+      <span style="color:#555;font-size:12px;">to</span>
+      <input type="date" id="hist-date-to" class="form-control form-control-sm" style="width:140px;" onchange="renderHistory()">
+      <button class="btn btn-outline-secondary btn-sm" onclick="clearHistoryFilters()"><i class="bi bi-x"></i> Clear</button>
+      <button class="btn btn-outline-info btn-sm" onclick="loadCampaignHistory()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+      <button class="btn btn-danger btn-sm ms-auto" onclick="clearAllHistory()"><i class="bi bi-trash"></i> Clear All History</button>
+    </div>
+  </div>
+
+  <div id="history-list-container"></div>
+</div>
+
+</div>
 <div id="toast-box"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-let workers={},csvRows=[],ipRecords=[],allImages=[];
+let workers={},csvRows=[],ipRecords=[],allImages=[],campaignHistoryData=[];
 
-// Clock
 setInterval(()=>{document.getElementById('clk').textContent=new Date().toLocaleTimeString();},1000);
 
-// Page nav
 function showPage(id,el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-tab-item').forEach(t=>t.classList.remove('active'));
@@ -279,22 +337,225 @@ function showPage(id,el){
   if(id==='scripts') loadScript();
   if(id==='database'){loadDBStats();loadIPRecords();loadCSVHistory();}
   if(id==='campaign') loadCampaigns();
+  if(id==='history') loadCampaignHistory();
 }
 
-// Badge
 function badge(s){
   const m={running:'badge-run',idle:'badge-idle',error:'badge-err',offline:'badge-off',updating:'badge-upd',
-           SUCCESS:'badge-success',FAILED:'badge-failed',PENDING:'badge-pending',assigned:'badge-assigned'};
+           SUCCESS:'badge-success',FAILED:'badge-failed',PENDING:'badge-pending',assigned:'badge-assigned',
+           completed:'badge-completed',stopped:'badge-stopped'};
   return`<span class="badge ${m[s]||'badge-idle'} rounded-pill px-2" style="font-size:10px;">${s||'idle'}</span>`;
 }
-
-// CPU/RAM bar
 function bar(v){
   v=v||0;const c=v>80?'#e74c3c':v>60?'#f39c12':'#1abc9c';
   return`<div style="font-size:11px;">${v}%<div class="progress mt-1" style="height:4px;"><div class="progress-bar" style="width:${v}%;background:${c};"></div></div></div>`;
 }
 
-// Fetch workers
+// ── CAMPAIGN HISTORY ──────────────────────────────
+
+async function loadCampaignHistory(){
+  try{
+    const d=await(await fetch('/api/campaign-history')).json();
+    campaignHistoryData=Array.isArray(d)?d:[];
+  }catch(e){
+    campaignHistoryData=getDemoHistory();
+  }
+  updateHistorySummary();
+  renderHistory();
+}
+
+function getDemoHistory(){
+  return[
+    {id:'ch1',name:'Frankfinn May Batch',script:'frankfinn.py',csv:'may_leads.csv',url:'https://frankfinn.com/apply',
+     status:'completed',start_time:'2025-05-28 09:15:00',stop_time:'2025-05-28 14:32:00',duration_min:317,
+     total_rows:500,success:423,failed:77,workers:['PC-01','PC-02','PC-03'],
+     logs:[{time:'09:15:00',level:'INFO',msg:'Campaign started on 3 workers'},{time:'09:16:10',level:'INFO',msg:'PC-01: Row 1 submitted successfully'},{time:'10:30:00',level:'WARN',msg:'PC-02: Slow response detected'},{time:'12:00:00',level:'INFO',msg:'250 rows completed (50%)'},{time:'14:32:00',level:'INFO',msg:'Campaign completed — 423 success, 77 failed'}]},
+    {id:'ch2',name:'NIIT June Campaign',script:'niit_form.py',csv:'niit_leads.csv',url:'https://niit.com/register',
+     status:'stopped',start_time:'2025-05-29 10:00:00',stop_time:'2025-05-29 11:45:00',duration_min:105,
+     total_rows:300,success:98,failed:12,workers:['PC-01','PC-04'],
+     logs:[{time:'10:00:00',level:'INFO',msg:'Campaign started on 2 workers'},{time:'10:15:00',level:'ERROR',msg:'PC-04: Target URL timeout'},{time:'11:00:00',level:'WARN',msg:'Manual stop triggered by admin'},{time:'11:45:00',level:'INFO',msg:'Campaign stopped — 98 success, 12 failed'}]},
+    {id:'ch3',name:'Aptech Test Run',script:'aptech.py',csv:'test_10.csv',url:'https://aptech.com/form',
+     status:'failed',start_time:'2025-05-30 08:00:00',stop_time:'2025-05-30 08:04:00',duration_min:4,
+     total_rows:10,success:0,failed:10,workers:['PC-02'],
+     logs:[{time:'08:00:00',level:'INFO',msg:'Campaign started'},{time:'08:01:00',level:'ERROR',msg:'Script error: ModuleNotFoundError playwright'},{time:'08:04:00',level:'ERROR',msg:'Campaign aborted due to critical error'}]},
+    {id:'ch4',name:'Frankfinn April Re-run',script:'frankfinn.py',csv:'april_retry.csv',url:'https://frankfinn.com/apply',
+     status:'completed',start_time:'2025-05-27 13:00:00',stop_time:'2025-05-27 16:20:00',duration_min:200,
+     total_rows:180,success:175,failed:5,workers:['PC-01','PC-02','PC-03','PC-04'],
+     logs:[{time:'13:00:00',level:'INFO',msg:'Campaign started on 4 workers'},{time:'14:00:00',level:'INFO',msg:'90 rows done (50%)'},{time:'16:20:00',level:'INFO',msg:'Campaign completed — 175 success, 5 failed'}]}
+  ];
+}
+
+function updateHistorySummary(){
+  const d=campaignHistoryData;
+  document.getElementById('hs-total').textContent=d.length;
+  document.getElementById('hs-success').textContent=d.reduce((a,c)=>a+(c.success||0),0);
+  document.getElementById('hs-failed').textContent=d.reduce((a,c)=>a+(c.failed||0),0);
+  document.getElementById('hs-workers').textContent=new Set(d.flatMap(c=>c.workers||[])).size;
+}
+
+function renderHistory(){
+  const sf=document.getElementById('hist-status-filter').value;
+  const q=(document.getElementById('hist-search').value||'').toLowerCase();
+  const df=document.getElementById('hist-date-from').value;
+  const dt=document.getElementById('hist-date-to').value;
+  let data=[...campaignHistoryData].filter(c=>{
+    if(sf&&c.status!==sf)return false;
+    if(q&&!c.name.toLowerCase().includes(q)&&!(c.script||'').toLowerCase().includes(q))return false;
+    if(df&&c.start_time&&c.start_time<df)return false;
+    if(dt&&c.start_time&&c.start_time>dt+' 23:59:59')return false;
+    return true;
+  }).sort((a,b)=>(b.start_time||'').localeCompare(a.start_time||''));
+  const container=document.getElementById('history-list-container');
+  container.innerHTML=data.length
+    ?data.map(c=>buildHistoryCard(c)).join('')
+    :`<div class="ch-empty"><i class="bi bi-inbox" style="font-size:32px;color:#333;display:block;margin-bottom:10px;"></i>Koi campaign history nahi mili</div>`;
+}
+
+function buildHistoryCard(c){
+  const sp=c.total_rows>0?Math.round((c.success/c.total_rows)*100):0;
+  const fp=c.total_rows>0?Math.round((c.failed/c.total_rows)*100):0;
+  const iconBg={completed:'background:#0d4a2a',stopped:'background:#3a2a00',failed:'background:#5a2020',running:'background:#1a3a6a'}[c.status]||'background:#1e2130';
+  const iconCls={completed:'bi-check-circle',stopped:'bi-stop-circle',failed:'bi-exclamation-triangle',running:'bi-play-circle'}[c.status]||'bi-clock';
+  const iconClr={completed:'#4effa0',stopped:'#ffcc55',failed:'#ff9090',running:'#90c8ff'}[c.status]||'#888';
+  const dur=c.duration_min?formatDuration(c.duration_min):'—';
+  return`<div class="ch-card" id="chcard-${c.id}">
+    <div class="ch-header" onclick="toggleHistDetail('${c.id}')">
+      <div class="ch-icon" style="${iconBg}"><i class="bi ${iconCls}" style="color:${iconClr};"></i></div>
+      <div class="ch-meta">
+        <div class="ch-name">${c.name||'Unnamed'}</div>
+        <div class="ch-sub">
+          <i class="bi bi-code-slash"></i> ${c.script||'—'} &nbsp;|&nbsp;
+          <i class="bi bi-file-earmark-spreadsheet"></i> ${c.csv||'—'} &nbsp;|&nbsp;
+          <i class="bi bi-calendar2"></i> ${(c.start_time||'').split(' ')[0]||'—'}
+        </div>
+      </div>
+      <div class="ch-stats">
+        <div class="ch-stat"><div class="ch-stat-val" style="color:#fff;">${c.total_rows||0}</div><div class="ch-stat-lbl">Total</div></div>
+        <div class="ch-stat"><div class="ch-stat-val text-success">${c.success||0}</div><div class="ch-stat-lbl">Success</div></div>
+        <div class="ch-stat"><div class="ch-stat-val text-danger">${c.failed||0}</div><div class="ch-stat-lbl">Failed</div></div>
+        <div class="ch-stat"><span class="duration-badge"><i class="bi bi-clock"></i> ${dur}</span></div>
+        <div class="ch-stat">${badge(c.status)}</div>
+        <i class="bi bi-chevron-down" id="hchev-${c.id}" style="color:#444;font-size:12px;transition:transform .2s;margin-left:4px;"></i>
+      </div>
+    </div>
+    <div class="ch-detail" id="chdetail-${c.id}">
+      <div class="ch-detail-inner">
+        <div class="ch-summary-grid">
+          <div class="ch-summary-box"><div class="ch-summary-val" style="color:#fff;">${c.total_rows||0}</div><div class="ch-summary-lbl">Total Rows</div></div>
+          <div class="ch-summary-box"><div class="ch-summary-val text-success">${c.success||0} <span style="font-size:11px;color:#555;">(${sp}%)</span></div><div class="ch-summary-lbl">Success</div></div>
+          <div class="ch-summary-box"><div class="ch-summary-val text-danger">${c.failed||0} <span style="font-size:11px;color:#555;">(${fp}%)</span></div><div class="ch-summary-lbl">Failed</div></div>
+          <div class="ch-summary-box"><div class="ch-summary-val" style="color:#90c8ff;">${(c.workers||[]).length}</div><div class="ch-summary-lbl">Workers Used</div></div>
+        </div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:11px;color:#555;margin-bottom:4px;">Progress — ${sp}% success rate</div>
+          <div style="height:8px;background:#1e2130;border-radius:4px;overflow:hidden;display:flex;">
+            <div style="width:${sp}%;background:#1abc9c;"></div>
+            <div style="width:${fp}%;background:#e74c3c;"></div>
+          </div>
+          <div style="display:flex;gap:14px;margin-top:5px;">
+            <span style="font-size:10px;color:#1abc9c;">■ Success ${sp}%</span>
+            <span style="font-size:10px;color:#e74c3c;">■ Failed ${fp}%</span>
+            <span style="font-size:10px;color:#444;">■ Other ${100-sp-fp}%</span>
+          </div>
+        </div>
+        <div class="ch-tab-bar" id="chtabs-${c.id}">
+          <button class="ch-tab active" onclick="swHTab('${c.id}','info',this)"><i class="bi bi-info-circle"></i> Info</button>
+          <button class="ch-tab" onclick="swHTab('${c.id}','workers',this)"><i class="bi bi-people"></i> Workers</button>
+          <button class="ch-tab" onclick="swHTab('${c.id}','timeline',this)"><i class="bi bi-diagram-3"></i> Timeline</button>
+          <button class="ch-tab" onclick="swHTab('${c.id}','logs',this)"><i class="bi bi-terminal"></i> Logs</button>
+        </div>
+        <div class="ch-tab-content active" id="cht-${c.id}-info">
+          <table style="width:100%;font-size:12px;color:#aaa;">
+            <tr><td style="color:#555;padding:5px 0;width:130px;">Campaign Name</td><td style="color:#ddd;">${c.name||'—'}</td></tr>
+            <tr><td style="color:#555;padding:5px 0;">Script Used</td><td><span class="ip-badge">${c.script||'—'}</span></td></tr>
+            <tr><td style="color:#555;padding:5px 0;">CSV File</td><td><span class="ip-badge">${c.csv||'—'}</span></td></tr>
+            <tr><td style="color:#555;padding:5px 0;">Target URL</td><td style="color:#4a90e2;word-break:break-all;">${c.url||'—'}</td></tr>
+            <tr><td style="color:#555;padding:5px 0;">Start Time</td><td>${c.start_time||'—'}</td></tr>
+            <tr><td style="color:#555;padding:5px 0;">Stop Time</td><td>${c.stop_time||'—'}</td></tr>
+            <tr><td style="color:#555;padding:5px 0;">Duration</td><td><span class="duration-badge">${dur}</span></td></tr>
+            <tr><td style="color:#555;padding:5px 0;">Final Status</td><td>${badge(c.status)}</td></tr>
+          </table>
+        </div>
+        <div class="ch-tab-content" id="cht-${c.id}-workers">
+          ${(c.workers||[]).length
+            ?(c.workers||[]).map((w,i)=>`<div class="ch-worker-row"><div><i class="bi bi-pc-display" style="color:#4a90e2;margin-right:8px;"></i><span style="font-weight:500;">${w}</span></div><div style="color:#555;font-size:11px;">Worker #${i+1}</div>${badge('running')}</div>`).join('')
+            :'<div style="color:#444;font-size:12px;padding:12px;">Koi worker data nahi</div>'}
+        </div>
+        <div class="ch-tab-content" id="cht-${c.id}-timeline">
+          <div class="ch-timeline">
+            <div class="ch-tl-item"><div class="ch-tl-dot"></div><div class="ch-tl-text"><strong style="color:#90c8ff;">Campaign Created</strong></div><div class="ch-tl-time">${(c.start_time||'').split(' ')[0]||'—'}</div></div>
+            <div class="ch-tl-item"><div class="ch-tl-dot success"></div><div class="ch-tl-text"><strong style="color:#1abc9c;">Started</strong> — ${(c.workers||[]).length} workers assigned</div><div class="ch-tl-time">${c.start_time||'—'}</div></div>
+            ${c.success>0?`<div class="ch-tl-item"><div class="ch-tl-dot success"></div><div class="ch-tl-text">${c.success} rows successfully submitted</div><div class="ch-tl-time">Campaign duration ke beech</div></div>`:''}
+            ${c.failed>0?`<div class="ch-tl-item"><div class="ch-tl-dot error"></div><div class="ch-tl-text">${c.failed} rows failed</div><div class="ch-tl-time">Campaign duration ke beech</div></div>`:''}
+            <div class="ch-tl-item"><div class="ch-tl-dot ${c.status==='completed'?'success':c.status==='failed'?'error':'warn'}"></div><div class="ch-tl-text"><strong style="color:${c.status==='completed'?'#1abc9c':c.status==='failed'?'#e74c3c':'#f39c12'};">${{completed:'Completed Successfully',failed:'Failed — Critical Error',stopped:'Stopped by Admin',running:'Currently Running'}[c.status]||c.status}</strong></div><div class="ch-tl-time">${c.stop_time||'—'}</div></div>
+          </div>
+        </div>
+        <div class="ch-tab-content" id="cht-${c.id}-logs">
+          <div class="ch-mini-log" id="chlogs-${c.id}">
+            ${(c.logs||[]).map(l=>`<div class="log-${l.level||'INFO'}">[${l.time||''}] ${l.msg||''}</div>`).join('')||'<span style="color:#333;">Koi logs nahi</span>'}
+          </div>
+          <div class="d-flex gap-2 mt-2">
+            <button class="btn btn-outline-secondary btn-sm" style="font-size:10px;" onclick="refreshHLogs('${c.id}')"><i class="bi bi-arrow-clockwise"></i> Refresh Logs</button>
+            <button class="btn btn-outline-info btn-sm" style="font-size:10px;" onclick="dlLogs('${c.id}','${c.name}')"><i class="bi bi-download"></i> Download Logs</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function toggleHistDetail(id){
+  const det=document.getElementById('chdetail-'+id);
+  const chev=document.getElementById('hchev-'+id);
+  if(det.classList.contains('open')){det.classList.remove('open');if(chev)chev.style.transform='rotate(0deg)';}
+  else{det.classList.add('open');if(chev)chev.style.transform='rotate(180deg)';}
+}
+
+function swHTab(id,tab,btn){
+  ['info','workers','timeline','logs'].forEach(t=>{
+    const el=document.getElementById(`cht-${id}-${t}`);if(el)el.classList.remove('active');
+  });
+  document.querySelectorAll(`#chtabs-${id} .ch-tab`).forEach(b=>b.classList.remove('active'));
+  const t=document.getElementById(`cht-${id}-${tab}`);if(t)t.classList.add('active');
+  btn.classList.add('active');
+}
+
+async function refreshHLogs(id){
+  try{
+    const d=await(await fetch(`/api/campaign-history/${id}/logs`)).json();
+    const box=document.getElementById('chlogs-'+id);
+    if(box){box.innerHTML=d.length?d.map(l=>`<div class="log-${l.level||'INFO'}">[${l.time}] ${l.msg}</div>`).join(''):'<span style="color:#333;">Koi logs nahi</span>';box.scrollTop=box.scrollHeight;}
+  }catch(e){toast('Logs load nahi hue','danger');}
+}
+
+function dlLogs(id,name){
+  const box=document.getElementById('chlogs-'+id);if(!box)return;
+  const blob=new Blob([box.innerText],{type:'text/plain'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${name||id}_logs.txt`;a.click();
+  toast('Logs downloaded!','success');
+}
+
+function formatDuration(m){
+  if(!m||m<1)return'<1m';if(m<60)return`${m}m`;
+  const h=Math.floor(m/60),r=m%60;return r?`${h}h ${r}m`:`${h}h`;
+}
+
+function clearHistoryFilters(){
+  document.getElementById('hist-status-filter').value='';
+  document.getElementById('hist-search').value='';
+  document.getElementById('hist-date-from').value='';
+  document.getElementById('hist-date-to').value='';
+  renderHistory();
+}
+
+async function clearAllHistory(){
+  if(!confirm('Saari campaign history delete karo? Ye undo nahi hoga!'))return;
+  try{await fetch('/api/campaign-history',{method:'DELETE'});}catch(e){}
+  campaignHistoryData=[];updateHistorySummary();renderHistory();toast('History cleared!','success');
+}
+
+// ── WORKERS ──────────────────────────────────────
+
 async function fetchWorkers(){
   try{
     const d=await(await fetch('/api/workers')).json();
@@ -335,13 +596,10 @@ function renderDash(){
     :`<tr><td colspan="9" class="text-center py-4" style="color:#444;">Koi system connected nahi — agent.py chalao</td></tr>`;
 }
 
-// System page
-let openDetail = null;
 function renderSystem(){
   const q=(document.getElementById('sys-search')||{value:''}).value.toLowerCase();
   const rows=Object.entries(workers).filter(([id])=>id.toLowerCase().includes(q)).sort(([a],[b])=>a.localeCompare(b));
-  const container=document.getElementById('system-list');
-  if(!container)return;
+  const container=document.getElementById('system-list');if(!container)return;
   container.innerHTML=rows.length
     ?rows.map(([id,w])=>`
     <div class="card mb-2 p-0 overflow-hidden" id="sys-card-${id}">
@@ -372,7 +630,7 @@ function renderSystem(){
             <button class="btn btn-outline-secondary btn-sm mt-2" style="font-size:10px;" onclick="loadLogs('${id}')"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
           </div>
           <div id="dt-${id}-url" style="display:none;">
-            <div style="font-size:11px;color:#555;margin-bottom:8px;">Is PC ke liye URL set karo — script mein apne aap update hoga</div>
+            <div style="font-size:11px;color:#555;margin-bottom:8px;">Is PC ke liye URL set karo</div>
             <input class="form-control form-control-sm mb-2" id="url-${id}" placeholder="https://example.com/form?utm_source=...">
             <div class="d-flex gap-2">
               <button class="btn btn-success btn-sm" onclick="saveURL('${id}')"><i class="bi bi-check"></i> Save URL</button>
@@ -380,7 +638,7 @@ function renderSystem(){
             </div>
           </div>
           <div id="dt-${id}-edit" style="display:none;">
-            <div style="font-size:11px;color:#555;margin-bottom:8px;">Script edit karo — Save karo to sab PCs pe update</div>
+            <div style="font-size:11px;color:#555;margin-bottom:8px;">Script edit karo</div>
             <textarea class="code-editor" id="editor-${id}" rows="12"></textarea>
             <div class="d-flex gap-2 mt-2">
               <input type="text" id="ev-${id}" value="1.0" class="form-control form-control-sm" style="width:70px;" placeholder="v">
@@ -398,292 +656,90 @@ function renderSystem(){
 }
 
 async function toggleDetail(id){
-  const det=document.getElementById(`detail-${id}`);
-  const chev=document.getElementById(`chev-${id}`);
-  if(det.style.display==='none'){
-    det.style.display='block';
-    if(chev) chev.style.transform='rotate(90deg)';
-    loadLogs(id);
-    loadScriptIntoEditor(id);
-    loadURLForPC(id);
-  } else {
-    det.style.display='none';
-    if(chev) chev.style.transform='rotate(0deg)';
-  }
+  const det=document.getElementById(`detail-${id}`);const chev=document.getElementById(`chev-${id}`);
+  if(det.style.display==='none'){det.style.display='block';if(chev)chev.style.transform='rotate(90deg)';loadLogs(id);loadScriptIntoEditor(id);loadURLForPC(id);}
+  else{det.style.display='none';if(chev)chev.style.transform='rotate(0deg)';}
 }
-
 function switchDTab(id,tab,btn){
-  ['cmd','url','edit','err'].forEach(t=>{
-    const el=document.getElementById(`dt-${id}-${t}`);
-    if(el) el.style.display=t===tab?'block':'none';
-  });
-  document.querySelectorAll(`#dtabs-${id} .dtab`).forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  if(tab==='cmd') loadLogs(id);
-  if(tab==='err') loadErrors(id);
+  ['cmd','url','edit','err'].forEach(t=>{const el=document.getElementById(`dt-${id}-${t}`);if(el)el.style.display=t===tab?'block':'none';});
+  document.querySelectorAll(`#dtabs-${id} .dtab`).forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  if(tab==='cmd')loadLogs(id);if(tab==='err')loadErrors(id);
 }
-
 async function loadLogs(id){
-  try{
-    const d=await(await fetch(`/api/worker/${id}/logs`)).json();
-    const box=document.getElementById(`log-${id}`);
-    if(!box)return;
-    box.innerHTML=d.length
-      ?d.slice(-60).map(l=>`<div class="log-${l.level||'INFO'}">[${l.time||''}] ${l.msg||''}</div>`).join('')
-      :'<span style="color:#333;">No logs yet</span>';
-    box.scrollTop=box.scrollHeight;
-  }catch(e){}
+  try{const d=await(await fetch(`/api/worker/${id}/logs`)).json();const box=document.getElementById(`log-${id}`);if(!box)return;
+    box.innerHTML=d.length?d.slice(-60).map(l=>`<div class="log-${l.level||'INFO'}">[${l.time||''}] ${l.msg||''}</div>`).join(''):'<span style="color:#333;">No logs yet</span>';box.scrollTop=box.scrollHeight;}catch(e){}
 }
-
 async function loadErrors(id){
-  try{
-    const d=await(await fetch(`/api/worker/${id}/errors`)).json();
-    const box=document.getElementById(`err-${id}`);
-    if(!box)return;
-    box.innerHTML=d.length
-      ?d.slice(-40).map(l=>`<div class="log-ERROR">[${l.time||''}] ${l.msg||''}</div>`).join('')
-      :'<div style="color:#1abc9c;">No errors</div>';
-    box.scrollTop=box.scrollHeight;
-  }catch(e){}
+  try{const d=await(await fetch(`/api/worker/${id}/errors`)).json();const box=document.getElementById(`err-${id}`);if(!box)return;
+    box.innerHTML=d.length?d.slice(-40).map(l=>`<div class="log-ERROR">[${l.time||''}] ${l.msg||''}</div>`).join(''):'<div style="color:#1abc9c;">No errors</div>';box.scrollTop=box.scrollHeight;}catch(e){}
 }
+async function loadScriptIntoEditor(id){try{const d=await(await fetch('/api/script/content')).json();const ed=document.getElementById(`editor-${id}`);if(ed)ed.value=d.content||'';}catch(e){}}
+async function loadURLForPC(id){try{const d=await(await fetch('/api/pc-urls')).json();const inp=document.getElementById(`url-${id}`);if(inp&&d[id])inp.value=d[id];}catch(e){}}
+async function saveURL(id){const url=(document.getElementById(`url-${id}`)||{value:''}).value;await fetch('/api/pc-url',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({worker_id:id,url})});toast(`URL saved for ${id}`,'success');}
+async function saveScriptFromSystem(id){const content=(document.getElementById(`editor-${id}`)||{value:''}).value;const version=(document.getElementById(`ev-${id}`)||{value:'1.0'}).value;const d=await(await fetch('/api/script/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content,version})})).json();toast(d.message,'success');}
+function highlightPC(id){setTimeout(()=>{const card=document.getElementById(`sys-card-${id}`);if(card){card.scrollIntoView({behavior:'smooth'});toggleDetail(id);}},100);}
 
-async function loadScriptIntoEditor(id){
-  try{
-    const d=await(await fetch('/api/script/content')).json();
-    const ed=document.getElementById(`editor-${id}`);
-    if(ed) ed.value=d.content||'';
-  }catch(e){}
-}
-
-async function loadURLForPC(id){
-  try{
-    const d=await(await fetch('/api/pc-urls')).json();
-    const inp=document.getElementById(`url-${id}`);
-    if(inp && d[id]) inp.value=d[id];
-  }catch(e){}
-}
-
-async function saveURL(id){
-  const url=(document.getElementById(`url-${id}`)||{value:''}).value;
-  await fetch('/api/pc-url',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({worker_id:id,url})});
-  toast(`URL saved for ${id}`,'success');
-}
-
-async function saveScriptFromSystem(id){
-  const content=(document.getElementById(`editor-${id}`)||{value:''}).value;
-  const version=(document.getElementById(`ev-${id}`)||{value:'1.0'}).value;
-  const d=await(await fetch('/api/script/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content,version})})).json();
-  toast(d.message,'success');
-}
-
-function highlightPC(id){
-  setTimeout(()=>{
-    const card=document.getElementById(`sys-card-${id}`);
-    if(card){card.scrollIntoView({behavior:'smooth'});toggleDetail(id);}
-  },100);
-}
-
-// Script page
 async function loadScript(){
   try{
-    const d=await(await fetch('/api/script/content')).json();
-    document.getElementById('code-editor').value=d.content||'';
-    const info=await(await fetch('/api/version')).json();
-    document.getElementById('edit-ver').value=info.version||'1.0';
-    document.getElementById('script-info').innerHTML=`
-      <span style="color:#fff;">Version:</span> v${info.version||'—'} &nbsp;|&nbsp;
-      <span style="color:#fff;">File:</span> ${info.filename||'—'} &nbsp;|&nbsp;
-      <span style="color:#fff;">Uploaded:</span> ${info.uploaded_at||'—'} &nbsp;|&nbsp;
-      <span style="color:#fff;">Data:</span> <span style="color:#ffd93d;">${info.data_required||'—'}</span>`;
+    const d=await(await fetch('/api/script/content')).json();document.getElementById('code-editor').value=d.content||'';
+    const info=await(await fetch('/api/version')).json();document.getElementById('edit-ver').value=info.version||'1.0';
+    document.getElementById('script-info').innerHTML=`<span style="color:#fff;">Version:</span> v${info.version||'—'} &nbsp;|&nbsp;<span style="color:#fff;">File:</span> ${info.filename||'—'} &nbsp;|&nbsp;<span style="color:#fff;">Uploaded:</span> ${info.uploaded_at||'—'} &nbsp;|&nbsp;<span style="color:#fff;">Data:</span> <span style="color:#ffd93d;">${info.data_required||'—'}</span>`;
   }catch(e){}
 }
-
 async function uploadScript(){
-  const file=document.getElementById('script-file').files[0];
-  const ver=document.getElementById('script-ver').value||'1.0';
-  const req=document.getElementById('script-req').value;
-  const dr=document.getElementById('script-data-req').value;
+  const file=document.getElementById('script-file').files[0];const ver=document.getElementById('script-ver').value||'1.0';const req=document.getElementById('script-req').value;const dr=document.getElementById('script-data-req').value;
   if(!file){toast('Script select karo!','danger');return;}
-  const fd=new FormData();fd.append('file',file);fd.append('version',ver);
-  fd.append('requirements',req);fd.append('data_required',dr);
+  const fd=new FormData();fd.append('file',file);fd.append('version',ver);fd.append('requirements',req);fd.append('data_required',dr);
   document.getElementById('script-msg').textContent='Uploading...';
   const d=await(await fetch('/api/upload-script',{method:'POST',body:fd})).json();
-  document.getElementById('script-msg').textContent=d.message||'Done!';
-  toast(d.message,'success');loadScript();
+  document.getElementById('script-msg').textContent=d.message||'Done!';toast(d.message,'success');loadScript();
 }
+async function saveScript(){const content=document.getElementById('code-editor').value;const version=document.getElementById('edit-ver').value||'1.0';const d=await(await fetch('/api/script/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content,version})})).json();toast(d.message,'success');}
 
-async function saveScript(){
-  const content=document.getElementById('code-editor').value;
-  const version=document.getElementById('edit-ver').value||'1.0';
-  const d=await(await fetch('/api/script/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content,version})})).json();
-  toast(d.message,'success');
-}
-
-// Database
 async function loadDBStats(){
   try{
-    const d=await(await fetch('/api/csv-status')).json();
-    if(d.error)return;
+    const d=await(await fetch('/api/csv-status')).json();if(d.error)return;
     const pct=d.total>0?Math.round((d.done/d.total)*100):0;
     document.getElementById('csv-info').textContent=`${d.total} rows | ${d.done} done | ${d.pending} pending | ${d.failed} failed`;
-    document.getElementById('db-prog').style.width=pct+'%';
-    document.getElementById('db-prog-text').textContent=`${pct}% complete`;
-    const imgs=await(await fetch('/api/images')).json();
-    document.getElementById('img-info').textContent=`${imgs.length} images | ${Math.round(imgs.reduce((a,i)=>a+i.size,0)/1024)}KB total`;
-    allImages=imgs;
-    const ips=await(await fetch('/api/ip-records')).json();
-    document.getElementById('ip-count').textContent=`${ips.length} IP records`;
-    ipRecords=ips;
+    document.getElementById('db-prog').style.width=pct+'%';document.getElementById('db-prog-text').textContent=`${pct}% complete`;
+    const imgs=await(await fetch('/api/images')).json();document.getElementById('img-info').textContent=`${imgs.length} images | ${Math.round(imgs.reduce((a,i)=>a+i.size,0)/1024)}KB total`;allImages=imgs;
+    const ips=await(await fetch('/api/ip-records')).json();document.getElementById('ip-count').textContent=`${ips.length} IP records`;ipRecords=ips;
   }catch(e){}
 }
+async function showCSVData(){document.getElementById('csv-data-section').style.display='block';const d=await(await fetch('/api/csv-status')).json();csvRows=d.rows||[];filterCSV();}
+function filterCSV(){const f=document.getElementById('csv-status-filter').value;const rows=f?csvRows.filter(r=>r.status===f):csvRows;document.getElementById('csv-tbody').innerHTML=rows.length?rows.map(r=>`<tr><td>${r.index}</td><td>${r.name}</td><td><span class="ip-badge">${r.mobile}</span></td><td>${r.email}</td><td>${badge(r.status)}</td><td style="font-size:11px;color:#555;">${r.worker}</td></tr>`).join(''):`<tr><td colspan="6" class="text-center py-3" style="color:#444;">Koi data nahi</td></tr>`;}
+function showImages(){document.getElementById('img-section').style.display='block';document.getElementById('img-grid').innerHTML=allImages.length?allImages.map(f=>`<div style="background:#12151f;border-radius:6px;padding:6px 10px;font-size:11px;color:#aaa;">${f.name}<br><span style="color:#555;">${Math.round(f.size/1024)}KB</span></div>`).join(''):'<span style="color:#444;">No images</span>';}
+async function loadIPRecords(){try{const d=await(await fetch('/api/ip-records')).json();document.getElementById('ip-tbody').innerHTML=d.length?d.slice(-50).map(r=>`<tr><td>${r.pc_name||r.worker_id||'—'}</td><td><span class="ip-badge">${r.ip||r.ip_address||'—'}</span></td><td>${r.campaign||'—'}</td><td>${r.script||'—'}</td><td style="font-size:11px;color:#555;">${r.time||r.timestamp||'—'}</td></tr>`).join(''):`<tr><td colspan="5" class="text-center py-3" style="color:#444;">Koi IP record nahi</td></tr>`;}catch(e){}}
+async function loadCSVHistory(){try{const d=await(await fetch('/api/csv-history')).json();document.getElementById('csv-history-list').innerHTML=d.length?d.map(f=>`<div class="history-item"><span>${f.name}</span><span style="color:#555;">${Math.round(f.size/1024)}KB</span></div>`).join(''):'<span style="color:#444;font-size:12px;">Koi history nahi</span>';}catch(e){}}
+async function clearCSVHistory(){if(!confirm('CSV history clear karo?'))return;await fetch('/api/csv-history',{method:'DELETE'});toast('CSV history cleared!','success');loadCSVHistory();}
+async function clearImages(){if(!confirm('Sab images delete karo?'))return;await fetch('/api/images',{method:'DELETE'});toast('Images cleared!','success');loadDBStats();}
+async function clearIPRecords(){if(!confirm('IP records clear karo?'))return;await fetch('/api/ip-records',{method:'DELETE'});toast('IP records cleared!','success');loadIPRecords();}
+async function uploadCSV(input){const file=input.files[0];if(!file)return;const fd=new FormData();fd.append('file',file);const d=await(await fetch('/api/upload-csv',{method:'POST',body:fd})).json();toast(d.message,'success');loadDBStats();loadCSVHistory();}
+async function uploadImages(input){const files=input.files;if(!files.length)return;const fd=new FormData();for(const f of files)fd.append('files',f);const d=await(await fetch('/api/upload-images',{method:'POST',body:fd})).json();toast(`${d.count} images uploaded!`,'success');loadDBStats();}
+async function uploadIPCSV(input){const file=input.files[0];if(!file)return;const fd=new FormData();fd.append('file',file);const d=await(await fetch('/api/upload-ip-csv',{method:'POST',body:fd})).json();toast(d.message,'success');loadIPRecords();}
 
-async function showCSVData(){
-  const sec=document.getElementById('csv-data-section');
-  sec.style.display='block';
-  const d=await(await fetch('/api/csv-status')).json();
-  csvRows=d.rows||[];filterCSV();
-}
-
-function filterCSV(){
-  const f=document.getElementById('csv-status-filter').value;
-  const rows=f?csvRows.filter(r=>r.status===f):csvRows;
-  document.getElementById('csv-tbody').innerHTML=rows.length
-    ?rows.map(r=>`<tr><td>${r.index}</td><td>${r.name}</td><td><span class="ip-badge">${r.mobile}</span></td><td>${r.email}</td><td>${badge(r.status)}</td><td style="font-size:11px;color:#555;">${r.worker}</td></tr>`).join('')
-    :`<tr><td colspan="6" class="text-center py-3" style="color:#444;">Koi data nahi</td></tr>`;
-}
-
-function showImages(){
-  const sec=document.getElementById('img-section');
-  sec.style.display='block';
-  document.getElementById('img-grid').innerHTML=allImages.length
-    ?allImages.map(f=>`<div style="background:#12151f;border-radius:6px;padding:6px 10px;font-size:11px;color:#aaa;">${f.name}<br><span style="color:#555;">${Math.round(f.size/1024)}KB</span></div>`).join('')
-    :'<span style="color:#444;">No images</span>';
-}
-
-async function loadIPRecords(){
-  try{
-    const d=await(await fetch('/api/ip-records')).json();
-    document.getElementById('ip-tbody').innerHTML=d.length
-      ?d.slice(-50).map(r=>`<tr>
-        <td>${r.pc_name||r.worker_id||'—'}</td>
-        <td><span class="ip-badge">${r.ip||r.ip_address||'—'}</span></td>
-        <td>${r.campaign||'—'}</td>
-        <td>${r.script||'—'}</td>
-        <td style="font-size:11px;color:#555;">${r.time||r.timestamp||'—'}</td>
-      </tr>`).join('')
-      :`<tr><td colspan="5" class="text-center py-3" style="color:#444;">Koi IP record nahi</td></tr>`;
-  }catch(e){}
-}
-
-async function loadCSVHistory(){
-  try{
-    const d=await(await fetch('/api/csv-history')).json();
-    document.getElementById('csv-history-list').innerHTML=d.length
-      ?d.map(f=>`<div class="history-item"><span>${f.name}</span><span style="color:#555;">${Math.round(f.size/1024)}KB</span></div>`).join('')
-      :'<span style="color:#444;font-size:12px;">Koi history nahi</span>';
-  }catch(e){}
-}
-
-async function clearCSVHistory(){
-  if(!confirm('CSV history clear karo?'))return;
-  await fetch('/api/csv-history',{method:'DELETE'});
-  toast('CSV history cleared!','success');loadCSVHistory();
-}
-
-async function clearImages(){
-  if(!confirm('Sab images delete karo?'))return;
-  await fetch('/api/images',{method:'DELETE'});
-  toast('Images cleared!','success');loadDBStats();
-}
-
-async function clearIPRecords(){
-  if(!confirm('IP records clear karo?'))return;
-  await fetch('/api/ip-records',{method:'DELETE'});
-  toast('IP records cleared!','success');loadIPRecords();
-}
-
-async function uploadCSV(input){
-  const file=input.files[0];if(!file)return;
-  const fd=new FormData();fd.append('file',file);
-  const d=await(await fetch('/api/upload-csv',{method:'POST',body:fd})).json();
-  toast(d.message,'success');loadDBStats();loadCSVHistory();
-}
-
-async function uploadImages(input){
-  const files=input.files;if(!files.length)return;
-  const fd=new FormData();for(const f of files)fd.append('files',f);
-  const d=await(await fetch('/api/upload-images',{method:'POST',body:fd})).json();
-  toast(`${d.count} images uploaded!`,'success');loadDBStats();
-}
-
-async function uploadIPCSV(input){
-  const file=input.files[0];if(!file)return;
-  const fd=new FormData();fd.append('file',file);
-  const d=await(await fetch('/api/upload-ip-csv',{method:'POST',body:fd})).json();
-  toast(d.message,'success');loadIPRecords();
-}
-
-// Campaign
 async function loadCampaigns(){
-  try{
-    const d=await(await fetch('/api/campaigns')).json();
-    document.getElementById('campaign-list').innerHTML=d.length
-      ?d.map(c=>`<div style="background:#12151f;border-radius:8px;padding:12px;margin-bottom:8px;">
-        <div class="d-flex justify-content-between align-items-center mb-1">
-          <span style="font-weight:500;font-size:13px;">${c.name}</span>
-          ${badge(c.status==='active'?'running':'idle')}
-        </div>
-        <div style="font-size:11px;color:#555;margin-bottom:8px;">Script: ${c.script||'—'} | CSV: ${c.csv||'—'}</div>
-        <div class="d-flex gap-2">
-          <button class="btn btn-success btn-sm py-0" style="font-size:10px;" onclick="startCampaign('${c.id}')">Start</button>
-          <button class="btn btn-warning btn-sm py-0" style="font-size:10px;" onclick="stopCampaign('${c.id}')">Stop</button>
-        </div>
-      </div>`).join('')
-      :'<span style="color:#444;font-size:12px;">Koi campaign nahi — create karo</span>';
-  }catch(e){}
+  try{const d=await(await fetch('/api/campaigns')).json();
+    document.getElementById('campaign-list').innerHTML=d.length?d.map(c=>`<div style="background:#12151f;border-radius:8px;padding:12px;margin-bottom:8px;"><div class="d-flex justify-content-between align-items-center mb-1"><span style="font-weight:500;font-size:13px;">${c.name}</span>${badge(c.status==='active'?'running':'idle')}</div><div style="font-size:11px;color:#555;margin-bottom:8px;">Script: ${c.script||'—'} | CSV: ${c.csv||'—'}</div><div class="d-flex gap-2"><button class="btn btn-success btn-sm py-0" style="font-size:10px;" onclick="startCampaign('${c.id}')">Start</button><button class="btn btn-warning btn-sm py-0" style="font-size:10px;" onclick="stopCampaign('${c.id}')">Stop</button></div></div>`).join(''):'<span style="color:#444;font-size:12px;">Koi campaign nahi — create karo</span>';}catch(e){}
 }
-
 async function createCampaign(){
-  const name=document.getElementById('camp-name').value;
-  const script=document.getElementById('camp-script').value;
-  const csv=document.getElementById('camp-csv').value;
-  const url=document.getElementById('camp-url').value;
+  const name=document.getElementById('camp-name').value;const script=document.getElementById('camp-script').value;const csv=document.getElementById('camp-csv').value;const url=document.getElementById('camp-url').value;
   if(!name){toast('Campaign naam do!','danger');return;}
-  await fetch('/api/campaigns',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({name,script,csv,url})});
+  await fetch('/api/campaigns',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,script,csv,url})});
   toast('Campaign created!','success');loadCampaigns();
 }
+async function startCampaign(id){await fetch(`/api/campaigns/${id}/start`,{method:'POST'});toast('Campaign started!','success');loadCampaigns();}
+async function stopCampaign(id){await fetch(`/api/campaigns/${id}/stop`,{method:'POST'});toast('Campaign stopped!','warning');loadCampaigns();}
 
-async function startCampaign(id){
-  await fetch(`/api/campaigns/${id}/start`,{method:'POST'});
-  toast('Campaign started!','success');loadCampaigns();
-}
+async function cmd(worker_id,command){await fetch('/api/send-command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({worker_id,command})});toast(`${command} → ${worker_id}`);}
+async function broadcast(command){await fetch('/api/broadcast',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command})});toast(`${command} → All PCs`,'success');}
 
-async function stopCampaign(id){
-  await fetch(`/api/campaigns/${id}/stop`,{method:'POST'});
-  toast('Campaign stopped!','warning');loadCampaigns();
-}
-
-// Commands
-async function cmd(worker_id,command){
-  await fetch('/api/send-command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({worker_id,command})});
-  toast(`${command} → ${worker_id}`);
-}
-async function broadcast(command){
-  await fetch('/api/broadcast',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command})});
-  toast(`${command} → All PCs`,'success');
-}
-
-// Toast
 function toast(msg,type='primary'){
-  const el=document.createElement('div');
-  el.className=`toast align-items-center text-white bg-${type} border-0 mb-2 show`;
+  const el=document.createElement('div');el.className=`toast align-items-center text-white bg-${type} border-0 mb-2 show`;
   el.innerHTML=`<div class="d-flex"><div class="toast-body" style="font-size:13px;">${msg}</div></div>`;
-  document.getElementById('toast-box').appendChild(el);
-  setTimeout(()=>el.remove(),3000);
+  document.getElementById('toast-box').appendChild(el);setTimeout(()=>el.remove(),3000);
 }
 
-// Auto refresh
 fetchWorkers();
 setInterval(fetchWorkers,8000);
 </script>
