@@ -354,35 +354,30 @@ function bar(v){
 // ── CAMPAIGN HISTORY ──────────────────────────────
 
 async function loadCampaignHistory(){
+  document.getElementById('history-list-container').innerHTML=
+    `<div class="ch-empty"><div class="spinner-border spinner-border-sm text-secondary mb-2" role="status"></div><br>Loading...</div>`;
   try{
-    const d=await(await fetch('/api/campaign-history')).json();
+    const resp=await fetch('/api/campaign-history');
+    if(!resp.ok) throw new Error(`Server error: ${resp.status}`);
+    const d=await resp.json();
+    if(d&&d.error) throw new Error(d.error);
     campaignHistoryData=Array.isArray(d)?d:[];
   }catch(e){
-    campaignHistoryData=getDemoHistory();
+    campaignHistoryData=[];
+    document.getElementById('history-list-container').innerHTML=
+      `<div class="ch-empty" style="color:#ff6b6b;">
+        <i class="bi bi-exclamation-triangle" style="font-size:28px;display:block;margin-bottom:8px;"></i>
+        History load nahi hui: ${e.message}<br>
+        <span style="font-size:11px;color:#555;margin-top:6px;display:block;">Campaign start karo dashboard se — phir yahan dikhegi</span>
+        <button class="btn btn-outline-secondary btn-sm mt-3" onclick="loadCampaignHistory()">
+          <i class="bi bi-arrow-clockwise"></i> Retry
+        </button>
+      </div>`;
+    updateHistorySummary();
+    return;
   }
   updateHistorySummary();
   renderHistory();
-}
-
-function getDemoHistory(){
-  return[
-    {id:'ch1',name:'Frankfinn May Batch',script:'frankfinn.py',csv:'may_leads.csv',url:'https://frankfinn.com/apply',
-     status:'completed',start_time:'2025-05-28 09:15:00',stop_time:'2025-05-28 14:32:00',duration_min:317,
-     total_rows:500,success:423,failed:77,workers:['PC-01','PC-02','PC-03'],
-     logs:[{time:'09:15:00',level:'INFO',msg:'Campaign started on 3 workers'},{time:'09:16:10',level:'INFO',msg:'PC-01: Row 1 submitted successfully'},{time:'10:30:00',level:'WARN',msg:'PC-02: Slow response detected'},{time:'12:00:00',level:'INFO',msg:'250 rows completed (50%)'},{time:'14:32:00',level:'INFO',msg:'Campaign completed — 423 success, 77 failed'}]},
-    {id:'ch2',name:'NIIT June Campaign',script:'niit_form.py',csv:'niit_leads.csv',url:'https://niit.com/register',
-     status:'stopped',start_time:'2025-05-29 10:00:00',stop_time:'2025-05-29 11:45:00',duration_min:105,
-     total_rows:300,success:98,failed:12,workers:['PC-01','PC-04'],
-     logs:[{time:'10:00:00',level:'INFO',msg:'Campaign started on 2 workers'},{time:'10:15:00',level:'ERROR',msg:'PC-04: Target URL timeout'},{time:'11:00:00',level:'WARN',msg:'Manual stop triggered by admin'},{time:'11:45:00',level:'INFO',msg:'Campaign stopped — 98 success, 12 failed'}]},
-    {id:'ch3',name:'Aptech Test Run',script:'aptech.py',csv:'test_10.csv',url:'https://aptech.com/form',
-     status:'failed',start_time:'2025-05-30 08:00:00',stop_time:'2025-05-30 08:04:00',duration_min:4,
-     total_rows:10,success:0,failed:10,workers:['PC-02'],
-     logs:[{time:'08:00:00',level:'INFO',msg:'Campaign started'},{time:'08:01:00',level:'ERROR',msg:'Script error: ModuleNotFoundError playwright'},{time:'08:04:00',level:'ERROR',msg:'Campaign aborted due to critical error'}]},
-    {id:'ch4',name:'Frankfinn April Re-run',script:'frankfinn.py',csv:'april_retry.csv',url:'https://frankfinn.com/apply',
-     status:'completed',start_time:'2025-05-27 13:00:00',stop_time:'2025-05-27 16:20:00',duration_min:200,
-     total_rows:180,success:175,failed:5,workers:['PC-01','PC-02','PC-03','PC-04'],
-     logs:[{time:'13:00:00',level:'INFO',msg:'Campaign started on 4 workers'},{time:'14:00:00',level:'INFO',msg:'90 rows done (50%)'},{time:'16:20:00',level:'INFO',msg:'Campaign completed — 175 success, 5 failed'}]}
-  ];
 }
 
 function updateHistorySummary(){
