@@ -150,6 +150,11 @@ def init_db():
             FOREIGN KEY (history_id) REFERENCES campaign_history(id)
         );
 
+        CREATE TABLE IF NOT EXISTS app_state (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        );
+
         INSERT OR IGNORE INTO script_store (id) VALUES (1);
         INSERT OR IGNORE INTO csv_progress (id) VALUES (1);
         """)
@@ -332,18 +337,66 @@ def save_used_row(row: dict, worker_id: str, status: str):
 # CAMPAIGN HISTORY MODULE
 # ═══════════════════════════════════════════════════
 
-# Active history ID track karne ke liye (campaign chalne par set hota hai)
-_active_history_id: Optional[str] = None
-_active_history_lock = threading.Lock()
-
+# Active history ID — SQLite mein store (server restart pe bhi survive kare)
 def _get_active_history_id() -> Optional[str]:
-    with _active_history_lock:
-        return _active_history_id
+    try:
+        with get_db() as conn:
+            row = conn.execute(
+                "SELECT value FROM app_state WHERE key='active_history_id'"
+            ).fetchone()
+            return row["value"] if row else None
+    except:
+        return None
 
 def _set_active_history_id(hid: Optional[str]):
-    global _active_history_id
-    with _active_history_lock:
-        _active_history_id = hid
+    try:
+        with db_lock:
+            with get_db() as conn:
+                if hid:
+                    conn.execute(
+                        "INSERT OR REPLACE INTO app_state (key, value) VALUES ('active_history_id', ?)",
+                        (hid,)
+                    )
+                else:
+                    conn.execute("DELETE FROM app_state WHERE key='active_history_id'")
+                conn.commit()
+    except:
+        pass
+
+def _recover_active_history():
+    """
+    Server restart ke baad: agar koi 'running' history DB mein hai
+    to usse 'stopped' mark karo — kyunki server restart = campaign band.
+    """
+    try:
+        with get_db() as conn:
+            row = conn.execute(
+                "SELECT value FROM app_state WHERE key='active_history_id'"
+            ).fetchone()
+            if row and row["value"]:
+                hid  = row["value"]
+                hist = conn.execute(
+                    "SELECT id FROM campaign_history WHERE id=? AND status='running'", (hid,)
+                ).fetchone()
+                if hist:
+                    print(f"[History] Orphaned history {hid} found — marking stopped (server restarted)")
+                    conn.execute(
+                        "UPDATE campaign_history SET status='stopped', stop_time=? WHERE id=?",
+                        (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), hid)
+                    )
+                    conn.execute(
+                        "INSERT INTO campaign_history_logs "
+                        "(history_id, time, level, worker_id, msg) VALUES (?,?,?,?,?)",
+                        (hid, datetime.now().strftime("%H:%M:%S"),
+                         "WARN", "SERVER", "Campaign stopped — server restarted")
+                    )
+                conn.execute("DELETE FROM app_state WHERE key='active_history_id'")
+                conn.commit()
+    except Exception as e:
+        print(f"[History] Recover error: {e}")
+
+# Startup pe orphaned histories recover karo
+_recover_active_history()
 
 def create_campaign_history(campaign_id: str, name: str, script: str,
                              csv_file: str, url: str) -> str:
@@ -903,6 +956,7 @@ def mark_row(data: dict):
     row_index = data.get("row_index")
     status    = data.get("status", "SUCCESS")
     row_data  = data.get("row_data", {})
+
     with csv_rw_lock:
         state = get_csv_state()
         rows  = state["data"]
@@ -910,13 +964,30 @@ def mark_row(data: dict):
             rows[row_index]["status"] = status
             state["data"]             = rows
             save_csv_state(state)
+
     if row_data:
         save_used_row(row_data, worker_id, status)
-    # History mein stats update
+
+    # History mein worker stats update
     if status.upper() == "SUCCESS":
         update_worker_stats_in_history(worker_id, rows_done=1, rows_failed=0)
     elif status.upper() == "FAILED":
         update_worker_stats_in_history(worker_id, rows_done=0, rows_failed=1)
+
+    # ── Auto-complete: saari rows done hone par history close karo ──
+    try:
+        state2 = get_csv_state()
+        rows2  = state2.get("data", [])
+        if rows2:
+            pending = sum(1 for r in rows2
+                         if r.get("status","").upper() not in ("SUCCESS","FAILED","USED"))
+            if pending == 0:
+                hid = _get_active_history_id()
+                if hid:
+                    stop_campaign_history(hid, final_status="completed")
+    except:
+        pass
+
     return {"message": f"Row {row_index} marked {status}"}
 
 @app.get("/api/csv-status")
@@ -1097,24 +1168,64 @@ def broadcast(data: dict, session: Optional[str] = Cookie(None)):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
     cmd = data.get("command")
 
-    # Broadcast se start/stop hone par history bhi handle karo
     if cmd == "stop":
+        # Active history band karo
         hid = _get_active_history_id()
         if hid:
             stop_campaign_history(hid, final_status="stopped")
+
     elif cmd == "start":
-        # Agar koi active campaign hai to uska history banao
+        # Pehle active history check karo
+        existing_hid = _get_active_history_id()
+        if not existing_hid:
+            # Koi bhi campaign dhundho — active ya latest
+            with get_db() as conn:
+                camp = conn.execute(
+                    "SELECT * FROM campaigns WHERE status='active' ORDER BY created_at DESC LIMIT 1"
+                ).fetchone()
+                if not camp:
+                    # active nahi mila to latest campaign lo
+                    camp = conn.execute(
+                        "SELECT * FROM campaigns ORDER BY created_at DESC LIMIT 1"
+                    ).fetchone()
+
+            if camp:
+                # Campaign ko active mark karo bhi
+                with db_lock:
+                    with get_db() as conn:
+                        conn.execute("UPDATE campaigns SET status='active' WHERE id=?", (camp["id"],))
+                        conn.commit()
+                create_campaign_history(
+                    campaign_id=camp["id"],
+                    name=camp["name"] or "Manual Start",
+                    script=camp["script"] or "—",
+                    csv_file=camp["csv_file"] or "—",
+                    url=camp["url"] or "—"
+                )
+            else:
+                # Campaign nahi hai to bhi history banao (manual/direct start)
+                create_campaign_history(
+                    campaign_id="manual",
+                    name="Manual Start (No Campaign)",
+                    script="—", csv_file="—", url="—"
+                )
+
+    elif cmd == "restart":
+        hid = _get_active_history_id()
+        if hid:
+            stop_campaign_history(hid, final_status="stopped")
+        # Nayi history banao restart ke liye
         with get_db() as conn:
-            active = conn.execute(
-                "SELECT * FROM campaigns WHERE status='active' ORDER BY created_at DESC LIMIT 1"
+            camp = conn.execute(
+                "SELECT * FROM campaigns ORDER BY created_at DESC LIMIT 1"
             ).fetchone()
-        if active and not _get_active_history_id():
+        if camp:
             create_campaign_history(
-                campaign_id=active["id"],
-                name=active["name"] or "—",
-                script=active["script"] or "—",
-                csv_file=active["csv_file"] or "—",
-                url=active["url"] or "—"
+                campaign_id=camp["id"],
+                name=f"{camp['name'] or 'Campaign'} (Restart)",
+                script=camp["script"] or "—",
+                csv_file=camp["csv_file"] or "—",
+                url=camp["url"] or "—"
             )
 
     send_cmd("ALL", cmd)
