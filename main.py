@@ -35,7 +35,8 @@ WORKER_SECRET = os.environ.get("WORKER_SECRET", secrets.token_hex(32))
 SESSION_HOURS = 24
 pwd_ctx       = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-_admin_hash = pwd_ctx.hash(ADMIN_PASS)
+# bcrypt max 72 bytes — truncate karo warna ValueError aata hai
+_admin_hash = pwd_ctx.hash(ADMIN_PASS[:72])
 
 # MQTT Config
 MQTT_BROKER  = os.environ.get("MQTT_BROKER", "broker.hivemq.com")
@@ -697,7 +698,7 @@ def login_page(): return HTMLResponse(login_html())
 
 @app.post("/login")
 def do_login(response: Response, username: str = Form(...), password: str = Form(...)):
-    if username == ADMIN_USER and pwd_ctx.verify(password, _admin_hash):
+    if username == ADMIN_USER and pwd_ctx.verify(password[:72], _admin_hash):
         token = create_session()
         resp  = RedirectResponse(url="/", status_code=302)
         resp.set_cookie("session", token, httponly=True, secure=False, samesite="lax", max_age=SESSION_HOURS*3600)
