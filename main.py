@@ -13,9 +13,9 @@ Fixes:
 
 import json, os, shutil, secrets, csv, hashlib, hmac, time
 import sqlite3, threading, io
+import bcrypt
 from datetime import datetime, timedelta
 from typing import Optional, List
-from passlib.context import CryptContext
 from fastapi import FastAPI, UploadFile, File, Form, Response, Cookie, Header
 from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -33,10 +33,18 @@ ADMIN_USER    = os.environ.get("ADMIN_USER", "admin")
 ADMIN_PASS    = os.environ.get("ADMIN_PASS", "admin123")
 WORKER_SECRET = os.environ.get("WORKER_SECRET", secrets.token_hex(32))
 SESSION_HOURS = 24
-pwd_ctx       = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# bcrypt max 72 bytes — truncate karo warna ValueError aata hai
-_admin_hash = pwd_ctx.hash(ADMIN_PASS[:72])
+# bcrypt seedha use karo — passlib compatibility issue avoid karne ke liye
+def hash_password(password: str) -> bytes:
+    return bcrypt.hashpw(password[:72].encode("utf-8"), bcrypt.gensalt())
+
+def verify_password(password: str, hashed: bytes) -> bool:
+    try:
+        return bcrypt.checkpw(password[:72].encode("utf-8"), hashed)
+    except Exception:
+        return False
+
+_admin_hash = hash_password(ADMIN_PASS)
 
 # MQTT Config
 MQTT_BROKER  = os.environ.get("MQTT_BROKER", "broker.hivemq.com")
@@ -698,7 +706,7 @@ def login_page(): return HTMLResponse(login_html())
 
 @app.post("/login")
 def do_login(response: Response, username: str = Form(...), password: str = Form(...)):
-    if username == ADMIN_USER and pwd_ctx.verify(password[:72], _admin_hash):
+    if username == ADMIN_USER and verify_password(password, _admin_hash):
         token = create_session()
         resp  = RedirectResponse(url="/", status_code=302)
         resp.set_cookie("session", token, httponly=True, secure=False, samesite="lax", max_age=SESSION_HOURS*3600)
