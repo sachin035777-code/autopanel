@@ -1,6 +1,5 @@
 fastapi
 uvicorn[standard]
-passlib[bcrypt]
+bcrypt
 paho-mqtt
 python-multipart
-bcrypt
