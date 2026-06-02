@@ -161,6 +161,11 @@ def init_db():
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
 
+        CREATE TABLE IF NOT EXISTS app_state (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        );
+
         INSERT OR IGNORE INTO script_store (id) VALUES (1);
         INSERT OR IGNORE INTO csv_progress (id) VALUES (1);
         """)
@@ -336,17 +341,62 @@ def save_used_row(row: dict, worker_id: str, status: str):
         w.writerow(row_copy)
 
 # ── CAMPAIGN HISTORY ──────────────────────────────
-_active_history_id: Optional[str] = None
-_active_history_lock = threading.Lock()
-
 def _get_active_history_id() -> Optional[str]:
-    with _active_history_lock:
-        return _active_history_id
+    try:
+        with get_db() as conn:
+            row = conn.execute(
+                "SELECT value FROM app_state WHERE key='active_history_id'"
+            ).fetchone()
+            return row["value"] if row else None
+    except:
+        return None
 
 def _set_active_history_id(hid: Optional[str]):
-    global _active_history_id
-    with _active_history_lock:
-        _active_history_id = hid
+    try:
+        with db_lock:
+            with get_db() as conn:
+                if hid:
+                    conn.execute(
+                        "INSERT OR REPLACE INTO app_state (key, value) VALUES ('active_history_id', ?)",
+                        (hid,)
+                    )
+                else:
+                    conn.execute("DELETE FROM app_state WHERE key='active_history_id'")
+                conn.commit()
+    except:
+        pass
+
+def _recover_active_history():
+    """Server restart ke baad orphaned 'running' history ko 'stopped' mark karo."""
+    try:
+        with get_db() as conn:
+            row = conn.execute(
+                "SELECT value FROM app_state WHERE key='active_history_id'"
+            ).fetchone()
+            if row and row["value"]:
+                hid  = row["value"]
+                hist = conn.execute(
+                    "SELECT id FROM campaign_history WHERE id=? AND status='running'", (hid,)
+                ).fetchone()
+                if hist:
+                    print(f"[History] Orphaned history {hid} — marking stopped (server restarted)")
+                    conn.execute(
+                        "UPDATE campaign_history SET status='stopped', stop_time=? WHERE id=?",
+                        (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), hid)
+                    )
+                    conn.execute(
+                        "INSERT INTO campaign_history_logs "
+                        "(history_id, time, level, worker_id, msg) VALUES (?,?,?,?,?)",
+                        (hid, datetime.now().strftime("%H:%M:%S"),
+                         "WARN", "SERVER", "Campaign stopped — server restarted")
+                    )
+                conn.execute("DELETE FROM app_state WHERE key='active_history_id'")
+                conn.commit()
+    except Exception as e:
+        print(f"[History] Recover error: {e}")
+
+# Startup pe orphaned histories recover karo
+_recover_active_history()
 
 def create_campaign_history(campaign_id, name, script, csv_file, url):
     hid        = secrets.token_hex(8)
@@ -1319,16 +1369,62 @@ def broadcast(data: dict, session: Optional[str] = Cookie(None)):
     if not check_session(session):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
     cmd_name = data.get("command")
+
     if cmd_name == "stop":
         hid = _get_active_history_id()
-        if hid: stop_campaign_history(hid, final_status="stopped")
+        if hid:
+            stop_campaign_history(hid, final_status="stopped")
+
     elif cmd_name == "start":
+        existing_hid = _get_active_history_id()
+        if not existing_hid:
+            with get_db() as conn:
+                # Pehle active campaign dhundo
+                camp = conn.execute(
+                    "SELECT * FROM campaigns WHERE status='active' ORDER BY created_at DESC LIMIT 1"
+                ).fetchone()
+                if not camp:
+                    # Active nahi mila to latest campaign lo
+                    camp = conn.execute(
+                        "SELECT * FROM campaigns ORDER BY created_at DESC LIMIT 1"
+                    ).fetchone()
+            if camp:
+                with db_lock:
+                    with get_db() as conn:
+                        conn.execute("UPDATE campaigns SET status='active' WHERE id=?", (camp["id"],))
+                        conn.commit()
+                create_campaign_history(
+                    campaign_id=camp["id"],
+                    name=camp["name"] or "Manual Start",
+                    script=camp["script"] or "—",
+                    csv_file=camp["csv_file"] or "—",
+                    url=camp["url"] or "—"
+                )
+            else:
+                # Koi campaign nahi — phir bhi history banao
+                create_campaign_history(
+                    campaign_id="manual",
+                    name="Manual Start (No Campaign)",
+                    script="—", csv_file="—", url="—"
+                )
+
+    elif cmd_name == "restart":
+        hid = _get_active_history_id()
+        if hid:
+            stop_campaign_history(hid, final_status="stopped")
         with get_db() as conn:
-            active = conn.execute("SELECT * FROM campaigns WHERE status='active' ORDER BY created_at DESC LIMIT 1").fetchone()
-        if active and not _get_active_history_id():
-            create_campaign_history(campaign_id=active["id"], name=active["name"] or "—",
-                                     script=active["script"] or "—", csv_file=active["csv_file"] or "—",
-                                     url=active["url"] or "—")
+            camp = conn.execute(
+                "SELECT * FROM campaigns ORDER BY created_at DESC LIMIT 1"
+            ).fetchone()
+        if camp:
+            create_campaign_history(
+                campaign_id=camp["id"],
+                name=f"{camp['name'] or 'Campaign'} (Restart)",
+                script=camp["script"] or "—",
+                csv_file=camp["csv_file"] or "—",
+                url=camp["url"] or "—"
+            )
+
     send_cmd("ALL", cmd_name)
     return {"message": "Broadcast sent"}
 
