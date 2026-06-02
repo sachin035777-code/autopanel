@@ -41,6 +41,7 @@ WORKER_SECRET = os.environ.get(
     "WORKER_SECRET",
     secrets.token_hex(32)
 )
+
 SESSION_HOURS = 24
 
 def hash_password(password: str) -> bytes:
@@ -170,7 +171,7 @@ def init_db():
             status TEXT DEFAULT 'active',
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
-fv
+
         CREATE TABLE IF NOT EXISTS app_state (
             key TEXT PRIMARY KEY,
             value TEXT
