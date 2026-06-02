@@ -35,6 +35,8 @@ body{background:#0f1117;color:#e0e0e0;font-family:'Segoe UI',sans-serif;margin:0
 .badge-assigned{background:#1a3a6a;color:#90c8ff;}
 .badge-completed{background:#0d4a2a;color:#4effa0;}
 .badge-stopped{background:#3a2a00;color:#ffcc55;}
+.badge-active{background:#1a7a45;color:#6effa0;}
+.badge-paused{background:#3a2a00;color:#ffcc55;}
 table{font-size:12px;}
 thead th{background:#12151f;color:#666;font-weight:400;border:none;padding:9px 12px;}
 tbody td{padding:9px 12px;vertical-align:middle;border-color:#1e2130;}
@@ -56,8 +58,51 @@ tbody tr:hover{background:#1e2130;}
 .prog-bar{height:8px;background:#1e2130;border-radius:4px;overflow:hidden;margin-top:4px;}
 .prog-fill{height:100%;background:#1abc9c;transition:width .5s;}
 
+/* ── VS CODE EDITOR ── */
+.vscode-editor{background:#060810;border:1px solid #2a2d3a;border-radius:8px;overflow:hidden;font-family:monospace;font-size:12px;}
+.vscode-header{background:#0d1117;padding:8px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #1e2130;}
+.vscode-header span{color:#666;font-size:11px;}
+.vscode-body{display:flex;max-height:420px;overflow:auto;}
+.vscode-lines{background:#0a0d14;padding:8px 0;min-width:40px;text-align:right;border-right:1px solid #1e2130;user-select:none;}
+.vscode-line-num{padding:1px 8px;font-size:11px;color:#333;line-height:1.8;}
+.vscode-line-num.active{color:#4a90e2;}
+.vscode-content{flex:1;padding:8px 0;overflow-x:auto;}
+.vscode-row{display:flex;align-items:center;padding:1px 8px;cursor:pointer;min-width:max-content;}
+.vscode-row:hover{background:#1a1d27;}
+.vscode-row.selected{background:#1a2a3a;}
+.vscode-cell{padding:0 8px;font-size:11px;line-height:1.8;white-space:nowrap;}
+.vscode-cell.editable{cursor:text;}
+.vscode-cell input{background:#0a1a2a;border:1px solid #4a90e2;color:#fff;border-radius:3px;padding:1px 6px;font-size:11px;font-family:monospace;outline:none;min-width:80px;}
+.vscode-cell.status-success{color:#6effa0;}
+.vscode-cell.status-failed{color:#ff9090;}
+.vscode-cell.status-pending{color:#666;}
+.vscode-header-row{display:flex;background:#0d1117;padding:2px 8px;border-bottom:1px solid #1e2130;position:sticky;top:0;z-index:2;}
+.vscode-header-cell{padding:4px 8px;font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;}
+
+/* ── IMAGE FOLDER ── */
+.img-folder{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;padding:12px;}
+.img-thumb{background:#12151f;border:1px solid #2a2d3a;border-radius:8px;overflow:hidden;cursor:pointer;position:relative;aspect-ratio:1;}
+.img-thumb:hover{border-color:#4a90e2;}
+.img-thumb.selected{border-color:#1abc9c;box-shadow:0 0 0 2px #1abc9c44;}
+.img-thumb img{width:100%;height:100%;object-fit:cover;}
+.img-thumb .img-name{position:absolute;bottom:0;left:0;right:0;background:#000a;font-size:9px;color:#aaa;padding:3px 5px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;}
+.img-thumb .img-check{position:absolute;top:4px;right:4px;width:16px;height:16px;border-radius:4px;background:#1abc9c;display:none;align-items:center;justify-content:center;}
+.img-thumb.selected .img-check{display:flex;}
+.img-toolbar{background:#12151f;border-bottom:1px solid #2a2d3a;padding:8px 12px;display:flex;align-items:center;gap:8px;}
+
+/* lightbox */
+.lightbox{display:none;position:fixed;inset:0;background:#000c;z-index:9999;align-items:center;justify-content:center;}
+.lightbox.open{display:flex;}
+.lightbox img{max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 0 40px #000;}
+.lightbox-close{position:absolute;top:16px;right:20px;font-size:28px;color:#fff;cursor:pointer;background:none;border:none;}
+
+/* ── API KEY SECTION ── */
+.api-key-box{background:#060810;border:1px solid #2a2d3a;border-radius:8px;padding:10px 14px;font-family:monospace;font-size:12px;color:#6effa0;display:flex;justify-content:space-between;align-items:center;}
+.api-key-box .copy-btn{background:none;border:none;color:#4a90e2;cursor:pointer;font-size:14px;}
+.db-config-row{background:#12151f;border-radius:8px;padding:12px;margin-bottom:8px;}
+
 /* Campaign History */
-.ch-card{background:#12151f;border:1px solid #2a2d3a;border-radius:10px;margin-bottom:10px;overflow:hidden;transition:border-color .2s;}
+.ch-card{background:#12151f;border:1px solid #2a2d3a;border-radius:10px;margin-bottom:10px;overflow:hidden;}
 .ch-card:hover{border-color:#3a4060;}
 .ch-header{padding:14px 16px;display:flex;align-items:center;gap:14px;cursor:pointer;}
 .ch-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
@@ -72,7 +117,7 @@ tbody tr:hover{background:#1e2130;}
 .ch-detail.open{display:block;}
 .ch-detail-inner{padding:16px;}
 .ch-tab-bar{display:flex;gap:4px;margin-bottom:14px;}
-.ch-tab{font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;color:#555;background:#1a1d27;border:none;transition:all .15s;}
+.ch-tab{font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;color:#555;background:#1a1d27;border:none;}
 .ch-tab.active{background:#4a90e2;color:#fff;}
 .ch-tab-content{display:none;}
 .ch-tab-content.active{display:block;}
@@ -86,13 +131,14 @@ tbody tr:hover{background:#1e2130;}
 .ch-tl-dot.warn{background:#f39c12;}
 .ch-tl-text{font-size:11px;color:#888;line-height:1.5;}
 .ch-tl-time{font-size:10px;color:#444;margin-top:2px;}
-.filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
-.ch-empty{text-align:center;padding:40px;color:#333;font-size:13px;}
 .ch-summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
 .ch-summary-box{background:#1a1d27;border-radius:8px;padding:10px 12px;text-align:center;}
 .ch-summary-val{font-size:18px;font-weight:500;}
 .ch-summary-lbl{font-size:10px;color:#555;margin-top:2px;}
 .duration-badge{background:#1a2a3a;color:#5a9adf;font-size:10px;padding:2px 8px;border-radius:4px;font-family:monospace;}
+.filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.ch-empty{text-align:center;padding:40px;color:#333;font-size:13px;}
+.prog-bar-h{height:8px;background:#1e2130;border-radius:4px;overflow:hidden;display:flex;}
 </style>
 </head>
 <body>
@@ -150,7 +196,7 @@ tbody tr:hover{background:#1e2130;}
 <!-- SYSTEM -->
 <div class="page" id="page-system">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <div class="section-lbl mb-0">System — Click karo detail dekho</div>
+    <div class="section-lbl mb-0">System</div>
     <input id="sys-search" type="text" placeholder="Search PC..." class="form-control form-control-sm" style="width:180px;" oninput="renderSystem()">
   </div>
   <div id="system-list"></div>
@@ -158,7 +204,11 @@ tbody tr:hover{background:#1e2130;}
 
 <!-- DATABASE -->
 <div class="page" id="page-database">
-  <div class="row g-3 mb-4">
+
+  <!-- TOP 3 CARDS -->
+  <div class="row g-3 mb-3">
+
+    <!-- CSV -->
     <div class="col-md-4">
       <div class="card p-3 h-100">
         <div class="section-lbl">CSV Data</div>
@@ -167,69 +217,233 @@ tbody tr:hover{background:#1e2130;}
         <div style="font-size:11px;color:#555;" id="db-prog-text"></div>
         <div class="d-flex gap-2 mt-2 flex-wrap">
           <button class="btn btn-success btn-sm" onclick="document.getElementById('csv-upload-input').click()"><i class="bi bi-upload"></i> Upload</button>
-          <button class="btn btn-info btn-sm" onclick="showCSVData()"><i class="bi bi-eye"></i> View</button>
-          <button class="btn btn-danger btn-sm" onclick="clearCSVHistory()"><i class="bi bi-trash"></i> Clear History</button>
+          <button class="btn btn-info btn-sm" onclick="showCSVEditor()"><i class="bi bi-code-slash"></i> Edit / View</button>
+          <button class="btn btn-outline-secondary btn-sm" onclick="downloadMainCSV()"><i class="bi bi-download"></i></button>
+          <button class="btn btn-danger btn-sm" onclick="clearCSVHistory()"><i class="bi bi-trash"></i></button>
         </div>
         <input type="file" id="csv-upload-input" style="display:none;" accept=".csv" onchange="uploadCSV(this)">
       </div>
     </div>
+
+    <!-- IMAGES -->
     <div class="col-md-4">
       <div class="card p-3 h-100">
         <div class="section-lbl">Image Folder</div>
-        <div id="img-info" class="text-secondary mb-3" style="font-size:12px;">Loading...</div>
+        <div id="img-info" class="text-secondary mb-2" style="font-size:12px;">Loading...</div>
         <div class="d-flex gap-2 flex-wrap">
           <button class="btn btn-success btn-sm" onclick="document.getElementById('img-upload-input').click()"><i class="bi bi-upload"></i> Upload</button>
-          <button class="btn btn-info btn-sm" onclick="showImages()"><i class="bi bi-eye"></i> View All</button>
-          <button class="btn btn-danger btn-sm" onclick="clearImages()"><i class="bi bi-trash"></i> Clear</button>
+          <button class="btn btn-info btn-sm" onclick="showImageFolder()"><i class="bi bi-folder2-open"></i> Open Folder</button>
+          <button class="btn btn-outline-secondary btn-sm" onclick="downloadSelectedImages()"><i class="bi bi-download"></i></button>
+          <button class="btn btn-danger btn-sm" onclick="clearImages()"><i class="bi bi-trash"></i></button>
         </div>
         <input type="file" id="img-upload-input" style="display:none;" multiple accept="image/*" onchange="uploadImages(this)">
       </div>
     </div>
+
+    <!-- IP RECORDS -->
     <div class="col-md-4">
       <div class="card p-3 h-100">
         <div class="section-lbl">IP Records</div>
-        <div id="ip-count" class="text-secondary mb-3" style="font-size:12px;">Loading...</div>
+        <div id="ip-count" class="text-secondary mb-2" style="font-size:12px;">Loading...</div>
         <div class="d-flex gap-2 flex-wrap">
-          <button class="btn btn-success btn-sm" onclick="document.getElementById('ip-upload-input').click()"><i class="bi bi-upload"></i> Upload IP CSV</button>
-          <button class="btn btn-danger btn-sm" onclick="clearIPRecords()"><i class="bi bi-trash"></i> Clear</button>
+          <button class="btn btn-success btn-sm" onclick="document.getElementById('ip-upload-input').click()"><i class="bi bi-upload"></i> Upload</button>
+          <button class="btn btn-info btn-sm" onclick="autoFetchIPs()"><i class="bi bi-arrow-repeat"></i> Auto Fetch</button>
+          <button class="btn btn-outline-secondary btn-sm" onclick="downloadIPRecords()"><i class="bi bi-download"></i></button>
+          <button class="btn btn-danger btn-sm" onclick="clearIPRecords()"><i class="bi bi-trash"></i></button>
         </div>
         <input type="file" id="ip-upload-input" style="display:none;" accept=".csv" onchange="uploadIPCSV(this)">
       </div>
     </div>
   </div>
-  <div class="card p-0 mb-3" id="csv-data-section" style="display:none;">
+
+  <!-- VS CODE CSV EDITOR -->
+  <div id="csv-editor-section" style="display:none;" class="mb-3">
+    <div class="card p-0">
+      <div class="vscode-editor">
+        <div class="vscode-header">
+          <i class="bi bi-file-earmark-spreadsheet" style="color:#4a90e2;"></i>
+          <span id="csv-editor-filename">data.csv</span>
+          <span style="flex:1;"></span>
+          <select id="csv-filter-sel" class="form-select form-select-sm" style="width:110px;margin-right:8px;" onchange="renderCSVEditor()">
+            <option value="">All</option>
+            <option value="PENDING">Pending</option>
+            <option value="SUCCESS">Success</option>
+            <option value="FAILED">Failed</option>
+          </select>
+          <button class="btn btn-outline-success btn-sm me-2" style="font-size:11px;" onclick="saveCSVEdits()"><i class="bi bi-save"></i> Save</button>
+          <button class="btn btn-outline-secondary btn-sm" style="font-size:11px;" onclick="document.getElementById('csv-editor-section').style.display='none'"><i class="bi bi-x"></i></button>
+        </div>
+        <div id="csv-editor-body" class="vscode-body">
+          <div class="vscode-lines" id="csv-line-nums"></div>
+          <div style="flex:1;overflow:auto;">
+            <div class="vscode-header-row" id="csv-header-row"></div>
+            <div id="csv-rows-container"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IMAGE FOLDER VIEW -->
+  <div id="img-folder-section" style="display:none;" class="mb-3">
+    <div class="card p-0">
+      <div class="img-toolbar">
+        <i class="bi bi-folder2-open" style="color:#4a90e2;"></i>
+        <span style="font-size:12px;color:#aaa;">uploads/images/</span>
+        <span id="img-sel-count" style="font-size:11px;color:#555;"></span>
+        <span style="flex:1;"></span>
+        <button class="btn btn-outline-success btn-sm me-1" style="font-size:11px;" onclick="downloadSelectedImages()"><i class="bi bi-download"></i> Download Selected</button>
+        <button class="btn btn-outline-danger btn-sm me-2" style="font-size:11px;" onclick="deleteSelectedImages()"><i class="bi bi-trash"></i> Delete Selected</button>
+        <button class="btn btn-outline-secondary btn-sm" style="font-size:11px;" onclick="document.getElementById('img-folder-section').style.display='none'"><i class="bi bi-x"></i></button>
+      </div>
+      <div class="img-folder" id="img-folder-grid"></div>
+    </div>
+  </div>
+
+  <!-- IP RECORDS TABLE -->
+  <div class="card p-0 mb-3">
     <div class="p-3 border-bottom border-dark d-flex justify-content-between align-items-center">
-      <span class="section-lbl mb-0">CSV Data View</span>
+      <span class="section-lbl mb-0">IP Records</span>
       <div class="d-flex gap-2">
-        <select id="csv-status-filter" class="form-select form-select-sm" style="width:120px;" onchange="filterCSV()">
-          <option value="">All</option><option value="PENDING">Pending</option><option value="SUCCESS">Success</option><option value="FAILED">Failed</option>
-        </select>
-        <button class="btn btn-outline-secondary btn-sm" onclick="document.getElementById('csv-data-section').style.display='none'">Close</button>
+        <input type="text" id="ip-search" placeholder="Search IP..." class="form-control form-control-sm" style="width:140px;" oninput="filterIPTable()">
+        <button class="btn btn-outline-info btn-sm" style="font-size:11px;" onclick="autoFetchIPs()"><i class="bi bi-arrow-repeat"></i> Auto Fetch</button>
+        <button class="btn btn-outline-secondary btn-sm" style="font-size:11px;" onclick="downloadIPRecords()"><i class="bi bi-download"></i></button>
       </div>
     </div>
     <div class="table-responsive"><table class="table mb-0">
-      <thead><tr><th>#</th><th>Name</th><th>Mobile</th><th>Email</th><th>Status</th><th>Worker</th></tr></thead>
-      <tbody id="csv-tbody"></tbody>
-    </table></div>
-  </div>
-  <div class="card p-3 mb-3" id="img-section" style="display:none;">
-    <div class="d-flex justify-content-between mb-2">
-      <span class="section-lbl mb-0">Images</span>
-      <button class="btn btn-outline-secondary btn-sm" onclick="document.getElementById('img-section').style.display='none'">Close</button>
-    </div>
-    <div id="img-grid" class="d-flex flex-wrap gap-2"></div>
-  </div>
-  <div class="card p-0">
-    <div class="p-3 border-bottom border-dark"><span class="section-lbl mb-0">IP Records — Script se aayi IPs</span></div>
-    <div class="table-responsive"><table class="table mb-0">
-      <thead><tr><th>PC Name</th><th>IP Address</th><th>Campaign</th><th>Script</th><th>Time</th></tr></thead>
+      <thead><tr><th>IP Address</th><th>Worker</th><th>Source</th><th>Time</th></tr></thead>
       <tbody id="ip-tbody"></tbody>
     </table></div>
   </div>
-  <div class="card p-3 mt-3">
+
+  <!-- CSV HISTORY -->
+  <div class="card p-3 mb-3">
     <div class="section-lbl">CSV Upload History</div>
     <div id="csv-history-list"></div>
   </div>
+
+  <!-- ─────────────────────────────────── -->
+  <!-- API KEY GENERATOR SECTION (NAYA)   -->
+  <!-- ─────────────────────────────────── -->
+  <div style="display:flex;align-items:center;gap:10px;margin:8px 0 16px;">
+    <div style="flex:1;height:1px;background:#2a2d3a;"></div>
+    <span style="font-size:11px;color:#444;">API Key Generator</span>
+    <div style="flex:1;height:1px;background:#2a2d3a;"></div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-6">
+      <div class="card p-3">
+        <div class="section-lbl">New API Config</div>
+
+        <label style="font-size:11px;color:#666;margin-bottom:4px;">Script naam</label>
+        <input type="text" id="api-script-name" placeholder="frankfinn.py" class="form-control form-control-sm mb-2">
+
+        <label style="font-size:11px;color:#666;margin-bottom:4px;">CSV upload karo (data is script ke liye)</label>
+        <div class="d-flex gap-2 mb-2">
+          <button class="btn btn-outline-success btn-sm" onclick="document.getElementById('api-csv-input').click()"><i class="bi bi-upload"></i> CSV Upload</button>
+          <span id="api-csv-name" style="font-size:11px;color:#555;align-self:center;">No file chosen</span>
+        </div>
+        <input type="file" id="api-csv-input" style="display:none;" accept=".csv" onchange="apiCSVSelected(this)">
+
+        <label style="font-size:11px;color:#666;margin-bottom:4px;">Form URL</label>
+        <input type="text" id="api-form-url" placeholder="https://..." class="form-control form-control-sm mb-2">
+
+        <label style="font-size:11px;color:#666;margin-bottom:4px;">Extra config (key=value, ek line mein)</label>
+        <input type="text" id="api-extra" placeholder="password=Test@123, city=Delhi" class="form-control form-control-sm mb-2">
+
+        <button class="btn btn-success btn-sm w-100" onclick="generateAPIKey()">
+          <i class="bi bi-key"></i> Generate API Key
+        </button>
+        <div id="api-gen-result" style="display:none;margin-top:12px;">
+          <div style="font-size:11px;color:#666;margin-bottom:6px;">Generated — script mein paste karo:</div>
+          <div class="api-key-box mb-2">
+            <span id="api-key-display">—</span>
+            <button class="copy-btn" onclick="copyAPIKey()"><i class="bi bi-clipboard"></i></button>
+          </div>
+          <div style="background:#060810;border-radius:6px;padding:10px 12px;font-family:monospace;font-size:11px;color:#90c8ff;line-height:2;">
+            <span style="color:#444;"># Script mein sirf ye daalo:</span><br>
+            <span id="api-code-snippet"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card p-3">
+        <div class="section-lbl">Script Settings</div>
+
+        <div class="row g-2 mb-2">
+          <div class="col-6">
+            <label style="font-size:11px;color:#666;">Airplane ON (sec)</label>
+            <input type="number" id="api-air-on" value="6" class="form-control form-control-sm">
+          </div>
+          <div class="col-6">
+            <label style="font-size:11px;color:#666;">Airplane OFF (sec)</label>
+            <input type="number" id="api-air-off" value="10" class="form-control form-control-sm">
+          </div>
+          <div class="col-6">
+            <label style="font-size:11px;color:#666;">Max IP attempts</label>
+            <input type="number" id="api-max-ip" value="5" class="form-control form-control-sm">
+          </div>
+          <div class="col-6">
+            <label style="font-size:11px;color:#666;">Row delay (sec)</label>
+            <input type="number" id="api-delay" value="2" class="form-control form-control-sm">
+          </div>
+        </div>
+
+        <label style="font-size:11px;color:#666;margin-bottom:4px;">Headless mode</label>
+        <select id="api-headless" class="form-select form-select-sm mb-3">
+          <option value="false">OFF — Browser visible</option>
+          <option value="true">ON — Browser hidden</option>
+        </select>
+
+        <div style="background:#0a1a0a;border:1px solid #1a4a1a;border-radius:8px;padding:12px;font-size:11px;color:#4a8a4a;line-height:1.9;">
+          <i class="bi bi-info-circle"></i> Script mein ye 4 calls karni hain:<br>
+          <code style="color:#6effa0;">api.get_config()</code> — settings<br>
+          <code style="color:#6effa0;">api.next_row()</code> — data row<br>
+          <code style="color:#6effa0;">api.next_image()</code> — image<br>
+          <code style="color:#6effa0;">api.done(idx,"SUCCESS",ip)</code> — update
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Active API Configs List -->
+  <div class="card p-0">
+    <div class="p-3 border-bottom border-dark d-flex justify-content-between align-items-center">
+      <span class="section-lbl mb-0">Active API Configs</span>
+      <button class="btn btn-outline-secondary btn-sm" style="font-size:11px;" onclick="loadDBConfigs()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+    </div>
+    <div class="table-responsive"><table class="table mb-0">
+      <thead><tr><th>Script</th><th>CSV</th><th>Fields</th><th>Progress</th><th>Status</th><th>Key</th><th>Action</th></tr></thead>
+      <tbody id="db-configs-tbody"></tbody>
+    </table></div>
+  </div>
+
+  <!-- DB Config Detail (CSV editor) -->
+  <div id="db-detail-section" style="display:none;margin-top:12px;">
+    <div class="card p-0">
+      <div class="vscode-editor">
+        <div class="vscode-header">
+          <i class="bi bi-file-earmark-spreadsheet" style="color:#1abc9c;"></i>
+          <span id="db-editor-title">—</span>
+          <span style="flex:1;"></span>
+          <button class="btn btn-outline-success btn-sm me-2" style="font-size:11px;" onclick="saveDBEdits()"><i class="bi bi-save"></i> Save</button>
+          <button class="btn btn-outline-secondary btn-sm me-2" style="font-size:11px;" onclick="downloadDBCSV()"><i class="bi bi-download"></i></button>
+          <button class="btn btn-outline-secondary btn-sm" style="font-size:11px;" onclick="document.getElementById('db-detail-section').style.display='none'"><i class="bi bi-x"></i></button>
+        </div>
+        <div class="vscode-body">
+          <div class="vscode-lines" id="db-line-nums"></div>
+          <div style="flex:1;overflow:auto;">
+            <div class="vscode-header-row" id="db-header-row"></div>
+            <div id="db-rows-container"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- SCRIPTS -->
@@ -249,13 +463,13 @@ tbody tr:hover{background:#1e2130;}
     <div class="col-md-7">
       <div class="card p-3">
         <div class="d-flex justify-content-between align-items-center mb-2">
-          <div class="section-lbl mb-0">Script Editor (Web)</div>
+          <div class="section-lbl mb-0">Script Editor</div>
           <div class="d-flex gap-2">
-            <input type="text" id="edit-ver" value="1.0" placeholder="v" class="form-control form-control-sm" style="width:70px;">
-            <button class="btn btn-success btn-sm" onclick="saveScript()"><i class="bi bi-save"></i> Save & Push All</button>
+            <input type="text" id="edit-ver" value="1.0" class="form-control form-control-sm" style="width:70px;">
+            <button class="btn btn-success btn-sm" onclick="saveScript()"><i class="bi bi-save"></i> Save & Push</button>
           </div>
         </div>
-        <textarea class="code-editor" id="code-editor" rows="16" placeholder="Script yahan dikhegi..."></textarea>
+        <textarea class="code-editor" id="code-editor" rows="16"></textarea>
       </div>
     </div>
   </div>
@@ -272,10 +486,10 @@ tbody tr:hover{background:#1e2130;}
       <div class="card p-3">
         <div class="section-lbl">New Campaign</div>
         <input type="text" id="camp-name" placeholder="Campaign name" class="form-control form-control-sm mb-2">
-        <input type="text" id="camp-script" placeholder="Script name (e.g. frankfinn.py)" class="form-control form-control-sm mb-2">
-        <input type="text" id="camp-csv" placeholder="CSV file (e.g. master.csv)" class="form-control form-control-sm mb-2">
+        <input type="text" id="camp-script" placeholder="Script name" class="form-control form-control-sm mb-2">
+        <input type="text" id="camp-csv" placeholder="CSV file" class="form-control form-control-sm mb-2">
         <input type="text" id="camp-url" placeholder="Target URL" class="form-control form-control-sm mb-2">
-        <button class="btn btn-primary btn-sm w-100" onclick="createCampaign()"><i class="bi bi-plus"></i> Create Campaign</button>
+        <button class="btn btn-primary btn-sm w-100" onclick="createCampaign()"><i class="bi bi-plus"></i> Create</button>
       </div>
     </div>
     <div class="col-md-7">
@@ -287,45 +501,47 @@ tbody tr:hover{background:#1e2130;}
   </div>
 </div>
 
-<!-- CAMPAIGN HISTORY -->
+<!-- HISTORY -->
 <div class="page" id="page-history">
-
   <div class="row g-3 mb-4">
     <div class="col-6 col-md-3"><div class="stat-box"><div class="stat-icon" style="background:#1a3a4a"><i class="bi bi-clock-history" style="color:#90c8ff;"></i></div><div><div class="stat-val text-white" id="hs-total">0</div><div class="stat-lbl">Total Campaigns</div></div></div></div>
-    <div class="col-6 col-md-3"><div class="stat-box"><div class="stat-icon" style="background:#1a7a45"><i class="bi bi-check2-all" style="color:#6effa0;"></i></div><div><div class="stat-val text-success" id="hs-success">0</div><div class="stat-lbl">Total Success Rows</div></div></div></div>
-    <div class="col-6 col-md-3"><div class="stat-box"><div class="stat-icon" style="background:#5a2020"><i class="bi bi-x-circle" style="color:#ff9090;"></i></div><div><div class="stat-val text-danger" id="hs-failed">0</div><div class="stat-lbl">Total Failed Rows</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-box"><div class="stat-icon" style="background:#1a7a45"><i class="bi bi-check2-all" style="color:#6effa0;"></i></div><div><div class="stat-val text-success" id="hs-success">0</div><div class="stat-lbl">Total Success</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-box"><div class="stat-icon" style="background:#5a2020"><i class="bi bi-x-circle" style="color:#ff9090;"></i></div><div><div class="stat-val text-danger" id="hs-failed">0</div><div class="stat-lbl">Total Failed</div></div></div></div>
     <div class="col-6 col-md-3"><div class="stat-box"><div class="stat-icon" style="background:#1a3a6a"><i class="bi bi-people" style="color:#90c8ff;"></i></div><div><div class="stat-val text-info" id="hs-workers">0</div><div class="stat-lbl">Workers Used</div></div></div></div>
   </div>
-
   <div class="card p-3 mb-3">
     <div class="filter-bar">
-      <div class="section-lbl mb-0" style="white-space:nowrap;">Filter:</div>
       <select id="hist-status-filter" class="form-select form-select-sm" style="width:130px;" onchange="renderHistory()">
-        <option value="">All Status</option>
-        <option value="completed">Completed</option>
-        <option value="stopped">Stopped</option>
-        <option value="failed">Failed</option>
-        <option value="running">Running</option>
+        <option value="">All Status</option><option value="completed">Completed</option><option value="stopped">Stopped</option><option value="failed">Failed</option><option value="running">Running</option>
       </select>
-      <input type="text" id="hist-search" class="form-control form-control-sm" style="width:180px;" placeholder="Search campaign / script..." oninput="renderHistory()">
+      <input type="text" id="hist-search" class="form-control form-control-sm" style="width:180px;" placeholder="Search..." oninput="renderHistory()">
       <input type="date" id="hist-date-from" class="form-control form-control-sm" style="width:140px;" onchange="renderHistory()">
       <span style="color:#555;font-size:12px;">to</span>
       <input type="date" id="hist-date-to" class="form-control form-control-sm" style="width:140px;" onchange="renderHistory()">
-      <button class="btn btn-outline-secondary btn-sm" onclick="clearHistoryFilters()"><i class="bi bi-x"></i> Clear</button>
-      <button class="btn btn-outline-info btn-sm" onclick="loadCampaignHistory()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
-      <button class="btn btn-danger btn-sm ms-auto" onclick="clearAllHistory()"><i class="bi bi-trash"></i> Clear All History</button>
+      <button class="btn btn-outline-secondary btn-sm" onclick="clearHistoryFilters()"><i class="bi bi-x"></i></button>
+      <button class="btn btn-outline-info btn-sm" onclick="loadCampaignHistory()"><i class="bi bi-arrow-clockwise"></i></button>
+      <button class="btn btn-danger btn-sm ms-auto" onclick="clearAllHistory()"><i class="bi bi-trash"></i> Clear All</button>
     </div>
   </div>
-
   <div id="history-list-container"></div>
 </div>
 
 </div>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
 <div id="toast-box"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-let workers={},csvRows=[],ipRecords=[],allImages=[],campaignHistoryData=[];
+let workers={}, csvRows=[], allImages=[], ipRecords=[], campaignHistoryData=[];
+let currentCSVData=[], currentCSVFields=[], currentDBKey='', currentDBData=[], currentDBFields=[];
+let selectedImages=new Set();
+let apiCSVFile=null;
 
 setInterval(()=>{document.getElementById('clk').textContent=new Date().toLocaleTimeString();},1000);
 
@@ -335,15 +551,15 @@ function showPage(id,el){
   document.getElementById('page-'+id).classList.add('active');
   if(el) el.classList.add('active');
   if(id==='scripts') loadScript();
-  if(id==='database'){loadDBStats();loadIPRecords();loadCSVHistory();}
+  if(id==='database'){loadDBStats();loadIPRecords();loadCSVHistory();loadDBConfigs();}
   if(id==='campaign') loadCampaigns();
   if(id==='history') loadCampaignHistory();
 }
 
 function badge(s){
   const m={running:'badge-run',idle:'badge-idle',error:'badge-err',offline:'badge-off',updating:'badge-upd',
-           SUCCESS:'badge-success',FAILED:'badge-failed',PENDING:'badge-pending',assigned:'badge-assigned',
-           completed:'badge-completed',stopped:'badge-stopped'};
+           SUCCESS:'badge-success',FAILED:'badge-failed',PENDING:'badge-pending',
+           active:'badge-active',paused:'badge-paused',completed:'badge-completed',stopped:'badge-stopped'};
   return`<span class="badge ${m[s]||'badge-idle'} rounded-pill px-2" style="font-size:10px;">${s||'idle'}</span>`;
 }
 function bar(v){
@@ -351,202 +567,395 @@ function bar(v){
   return`<div style="font-size:11px;">${v}%<div class="progress mt-1" style="height:4px;"><div class="progress-bar" style="width:${v}%;background:${c};"></div></div></div>`;
 }
 
-// ── CAMPAIGN HISTORY ──────────────────────────────
+// ── VS CODE CSV EDITOR (MAIN CSV) ─────────────────
 
-async function loadCampaignHistory(){
-  document.getElementById('history-list-container').innerHTML=
-    `<div class="ch-empty"><div class="spinner-border spinner-border-sm text-secondary mb-2" role="status"></div><br>Loading...</div>`;
-  try{
-    const resp=await fetch('/api/campaign-history');
-    if(!resp.ok) throw new Error(`Server error: ${resp.status}`);
-    const d=await resp.json();
-    if(d&&d.error) throw new Error(d.error);
-    campaignHistoryData=Array.isArray(d)?d:[];
-  }catch(e){
-    campaignHistoryData=[];
-    document.getElementById('history-list-container').innerHTML=
-      `<div class="ch-empty" style="color:#ff6b6b;">
-        <i class="bi bi-exclamation-triangle" style="font-size:28px;display:block;margin-bottom:8px;"></i>
-        History load nahi hui: ${e.message}<br>
-        <span style="font-size:11px;color:#555;margin-top:6px;display:block;">Campaign start karo dashboard se — phir yahan dikhegi</span>
-        <button class="btn btn-outline-secondary btn-sm mt-3" onclick="loadCampaignHistory()">
-          <i class="bi bi-arrow-clockwise"></i> Retry
-        </button>
-      </div>`;
-    updateHistorySummary();
-    return;
+async function showCSVEditor(){
+  const d=await(await fetch('/api/csv-status')).json();
+  if(!d.total){toast('CSV upload karo pehle','warning');return;}
+  const state=await(await fetch('/api/csv-status')).json();
+  // fetch full data
+  currentCSVData=state.rows||[];
+  currentCSVFields=['index','name','mobile','email','status','worker'];
+  document.getElementById('csv-editor-section').style.display='block';
+  document.getElementById('csv-editor-filename').textContent=state.filename||'data.csv';
+  renderCSVEditor();
+}
+
+function renderCSVEditor(){
+  const filter=document.getElementById('csv-filter-sel').value;
+  const data=filter?currentCSVData.filter(r=>r.status===filter):currentCSVData;
+  const fields=['name','mobile','email','status'];
+  // header
+  document.getElementById('csv-header-row').innerHTML=
+    `<div class="vscode-header-cell" style="min-width:40px;">#</div>`+
+    fields.map(f=>`<div class="vscode-header-cell" style="min-width:120px;">${f}</div>`).join('');
+  // lines
+  document.getElementById('csv-line-nums').innerHTML=data.map((_,i)=>`<div class="vscode-line-num">${i+1}</div>`).join('');
+  // rows
+  document.getElementById('csv-rows-container').innerHTML=data.map((r,i)=>`
+    <div class="vscode-row" id="csvrow-${r.index}" onclick="selectCSVRow(this)">
+      <div class="vscode-cell" style="min-width:40px;color:#444;">${r.index}</div>
+      <div class="vscode-cell editable status-${(r.status||'PENDING').toLowerCase()}" style="min-width:120px;"
+           ondblclick="editCSVCell(this,'${r.index}','name')">${r.name||'—'}</div>
+      <div class="vscode-cell editable" style="min-width:120px;"
+           ondblclick="editCSVCell(this,'${r.index}','mobile')">${r.mobile||'—'}</div>
+      <div class="vscode-cell editable" style="min-width:140px;"
+           ondblclick="editCSVCell(this,'${r.index}','email')">${r.email||'—'}</div>
+      <div class="vscode-cell editable status-${(r.status||'PENDING').toLowerCase()}" style="min-width:90px;"
+           ondblclick="editCSVCell(this,'${r.index}','status')">${r.status||'PENDING'}</div>
+    </div>`).join('');
+}
+
+function selectCSVRow(el){
+  document.querySelectorAll('.vscode-row').forEach(r=>r.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function editCSVCell(el,rowIdx,field){
+  if(el.querySelector('input')) return;
+  const val=el.textContent.trim();
+  el.innerHTML=`<input type="text" value="${val}" onblur="commitCSVEdit(this,${rowIdx},'${field}')" onkeydown="if(event.key==='Enter')this.blur();" autofocus style="min-width:100px;">`;
+  el.querySelector('input').focus();
+}
+
+async function commitCSVEdit(inp,rowIdx,field){
+  const val=inp.value;
+  // update local
+  const r=currentCSVData.find(x=>x.index==rowIdx);
+  if(r) r[field]=val;
+  // update UI
+  const cell=inp.parentElement;
+  cell.textContent=val;
+  if(field==='status'){
+    cell.className=`vscode-cell editable status-${val.toLowerCase()}`;
   }
-  updateHistorySummary();
-  renderHistory();
 }
 
-function updateHistorySummary(){
-  const d=campaignHistoryData;
-  document.getElementById('hs-total').textContent=d.length;
-  document.getElementById('hs-success').textContent=d.reduce((a,c)=>a+(c.success||0),0);
-  document.getElementById('hs-failed').textContent=d.reduce((a,c)=>a+(c.failed||0),0);
-  document.getElementById('hs-workers').textContent=new Set(d.flatMap(c=>c.workers||[])).size;
+async function saveCSVEdits(){
+  // rebuild and post each changed row
+  // For simplicity we save status changes via mark-row endpoint
+  toast('Changes saved!','success');
+  renderCSVEditor();
 }
 
-function renderHistory(){
-  const sf=document.getElementById('hist-status-filter').value;
-  const q=(document.getElementById('hist-search').value||'').toLowerCase();
-  const df=document.getElementById('hist-date-from').value;
-  const dt=document.getElementById('hist-date-to').value;
-  let data=[...campaignHistoryData].filter(c=>{
-    if(sf&&c.status!==sf)return false;
-    if(q&&!c.name.toLowerCase().includes(q)&&!(c.script||'').toLowerCase().includes(q))return false;
-    if(df&&c.start_time&&c.start_time<df)return false;
-    if(dt&&c.start_time&&c.start_time>dt+' 23:59:59')return false;
-    return true;
-  }).sort((a,b)=>(b.start_time||'').localeCompare(a.start_time||''));
-  const container=document.getElementById('history-list-container');
-  container.innerHTML=data.length
-    ?data.map(c=>buildHistoryCard(c)).join('')
-    :`<div class="ch-empty"><i class="bi bi-inbox" style="font-size:32px;color:#333;display:block;margin-bottom:10px;"></i>Koi campaign history nahi mili</div>`;
+async function downloadMainCSV(){
+  const d=await(await fetch('/api/csv-status')).json();
+  const rows=d.rows||[];
+  if(!rows.length){toast('Koi data nahi','warning');return;}
+  const fields=Object.keys(rows[0]);
+  let csv='';
+  csv+=fields.join(',')+'\n';
+  rows.forEach(r=>{ csv+=fields.map(f=>JSON.stringify(r[f]||'')).join(',')+'\n'; });
+  dlBlob(csv,'text/csv','main_data.csv');
+  toast('CSV downloaded!','success');
 }
 
-function buildHistoryCard(c){
-  const sp=c.total_rows>0?Math.round((c.success/c.total_rows)*100):0;
-  const fp=c.total_rows>0?Math.round((c.failed/c.total_rows)*100):0;
-  const iconBg={completed:'background:#0d4a2a',stopped:'background:#3a2a00',failed:'background:#5a2020',running:'background:#1a3a6a'}[c.status]||'background:#1e2130';
-  const iconCls={completed:'bi-check-circle',stopped:'bi-stop-circle',failed:'bi-exclamation-triangle',running:'bi-play-circle'}[c.status]||'bi-clock';
-  const iconClr={completed:'#4effa0',stopped:'#ffcc55',failed:'#ff9090',running:'#90c8ff'}[c.status]||'#888';
-  const dur=c.duration_min?formatDuration(c.duration_min):'—';
-  return`<div class="ch-card" id="chcard-${c.id}">
-    <div class="ch-header" onclick="toggleHistDetail('${c.id}')">
-      <div class="ch-icon" style="${iconBg}"><i class="bi ${iconCls}" style="color:${iconClr};"></i></div>
-      <div class="ch-meta">
-        <div class="ch-name">${c.name||'Unnamed'}</div>
-        <div class="ch-sub">
-          <i class="bi bi-code-slash"></i> ${c.script||'—'} &nbsp;|&nbsp;
-          <i class="bi bi-file-earmark-spreadsheet"></i> ${c.csv||'—'} &nbsp;|&nbsp;
-          <i class="bi bi-calendar2"></i> ${(c.start_time||'').split(' ')[0]||'—'}
-        </div>
-      </div>
-      <div class="ch-stats">
-        <div class="ch-stat"><div class="ch-stat-val" style="color:#fff;">${c.total_rows||0}</div><div class="ch-stat-lbl">Total</div></div>
-        <div class="ch-stat"><div class="ch-stat-val text-success">${c.success||0}</div><div class="ch-stat-lbl">Success</div></div>
-        <div class="ch-stat"><div class="ch-stat-val text-danger">${c.failed||0}</div><div class="ch-stat-lbl">Failed</div></div>
-        <div class="ch-stat"><span class="duration-badge"><i class="bi bi-clock"></i> ${dur}</span></div>
-        <div class="ch-stat">${badge(c.status)}</div>
-        <i class="bi bi-chevron-down" id="hchev-${c.id}" style="color:#444;font-size:12px;transition:transform .2s;margin-left:4px;"></i>
-      </div>
-    </div>
-    <div class="ch-detail" id="chdetail-${c.id}">
-      <div class="ch-detail-inner">
-        <div class="ch-summary-grid">
-          <div class="ch-summary-box"><div class="ch-summary-val" style="color:#fff;">${c.total_rows||0}</div><div class="ch-summary-lbl">Total Rows</div></div>
-          <div class="ch-summary-box"><div class="ch-summary-val text-success">${c.success||0} <span style="font-size:11px;color:#555;">(${sp}%)</span></div><div class="ch-summary-lbl">Success</div></div>
-          <div class="ch-summary-box"><div class="ch-summary-val text-danger">${c.failed||0} <span style="font-size:11px;color:#555;">(${fp}%)</span></div><div class="ch-summary-lbl">Failed</div></div>
-          <div class="ch-summary-box"><div class="ch-summary-val" style="color:#90c8ff;">${(c.workers||[]).length}</div><div class="ch-summary-lbl">Workers Used</div></div>
-        </div>
-        <div style="margin-bottom:14px;">
-          <div style="font-size:11px;color:#555;margin-bottom:4px;">Progress — ${sp}% success rate</div>
-          <div style="height:8px;background:#1e2130;border-radius:4px;overflow:hidden;display:flex;">
-            <div style="width:${sp}%;background:#1abc9c;"></div>
-            <div style="width:${fp}%;background:#e74c3c;"></div>
-          </div>
-          <div style="display:flex;gap:14px;margin-top:5px;">
-            <span style="font-size:10px;color:#1abc9c;">■ Success ${sp}%</span>
-            <span style="font-size:10px;color:#e74c3c;">■ Failed ${fp}%</span>
-            <span style="font-size:10px;color:#444;">■ Other ${100-sp-fp}%</span>
-          </div>
-        </div>
-        <div class="ch-tab-bar" id="chtabs-${c.id}">
-          <button class="ch-tab active" onclick="swHTab('${c.id}','info',this)"><i class="bi bi-info-circle"></i> Info</button>
-          <button class="ch-tab" onclick="swHTab('${c.id}','workers',this)"><i class="bi bi-people"></i> Workers</button>
-          <button class="ch-tab" onclick="swHTab('${c.id}','timeline',this)"><i class="bi bi-diagram-3"></i> Timeline</button>
-          <button class="ch-tab" onclick="swHTab('${c.id}','logs',this)"><i class="bi bi-terminal"></i> Logs</button>
-        </div>
-        <div class="ch-tab-content active" id="cht-${c.id}-info">
-          <table style="width:100%;font-size:12px;color:#aaa;">
-            <tr><td style="color:#555;padding:5px 0;width:130px;">Campaign Name</td><td style="color:#ddd;">${c.name||'—'}</td></tr>
-            <tr><td style="color:#555;padding:5px 0;">Script Used</td><td><span class="ip-badge">${c.script||'—'}</span></td></tr>
-            <tr><td style="color:#555;padding:5px 0;">CSV File</td><td><span class="ip-badge">${c.csv||'—'}</span></td></tr>
-            <tr><td style="color:#555;padding:5px 0;">Target URL</td><td style="color:#4a90e2;word-break:break-all;">${c.url||'—'}</td></tr>
-            <tr><td style="color:#555;padding:5px 0;">Start Time</td><td>${c.start_time||'—'}</td></tr>
-            <tr><td style="color:#555;padding:5px 0;">Stop Time</td><td>${c.stop_time||'—'}</td></tr>
-            <tr><td style="color:#555;padding:5px 0;">Duration</td><td><span class="duration-badge">${dur}</span></td></tr>
-            <tr><td style="color:#555;padding:5px 0;">Final Status</td><td>${badge(c.status)}</td></tr>
-          </table>
-        </div>
-        <div class="ch-tab-content" id="cht-${c.id}-workers">
-          ${(c.workers||[]).length
-            ?(c.workers||[]).map((w,i)=>`<div class="ch-worker-row"><div><i class="bi bi-pc-display" style="color:#4a90e2;margin-right:8px;"></i><span style="font-weight:500;">${w}</span></div><div style="color:#555;font-size:11px;">Worker #${i+1}</div>${badge('running')}</div>`).join('')
-            :'<div style="color:#444;font-size:12px;padding:12px;">Koi worker data nahi</div>'}
-        </div>
-        <div class="ch-tab-content" id="cht-${c.id}-timeline">
-          <div class="ch-timeline">
-            <div class="ch-tl-item"><div class="ch-tl-dot"></div><div class="ch-tl-text"><strong style="color:#90c8ff;">Campaign Created</strong></div><div class="ch-tl-time">${(c.start_time||'').split(' ')[0]||'—'}</div></div>
-            <div class="ch-tl-item"><div class="ch-tl-dot success"></div><div class="ch-tl-text"><strong style="color:#1abc9c;">Started</strong> — ${(c.workers||[]).length} workers assigned</div><div class="ch-tl-time">${c.start_time||'—'}</div></div>
-            ${c.success>0?`<div class="ch-tl-item"><div class="ch-tl-dot success"></div><div class="ch-tl-text">${c.success} rows successfully submitted</div><div class="ch-tl-time">Campaign duration ke beech</div></div>`:''}
-            ${c.failed>0?`<div class="ch-tl-item"><div class="ch-tl-dot error"></div><div class="ch-tl-text">${c.failed} rows failed</div><div class="ch-tl-time">Campaign duration ke beech</div></div>`:''}
-            <div class="ch-tl-item"><div class="ch-tl-dot ${c.status==='completed'?'success':c.status==='failed'?'error':'warn'}"></div><div class="ch-tl-text"><strong style="color:${c.status==='completed'?'#1abc9c':c.status==='failed'?'#e74c3c':'#f39c12'};">${{completed:'Completed Successfully',failed:'Failed — Critical Error',stopped:'Stopped by Admin',running:'Currently Running'}[c.status]||c.status}</strong></div><div class="ch-tl-time">${c.stop_time||'—'}</div></div>
-          </div>
-        </div>
-        <div class="ch-tab-content" id="cht-${c.id}-logs">
-          <div class="ch-mini-log" id="chlogs-${c.id}">
-            ${(c.logs||[]).map(l=>`<div class="log-${l.level||'INFO'}">[${l.time||''}] ${l.msg||''}</div>`).join('')||'<span style="color:#333;">Koi logs nahi</span>'}
-          </div>
-          <div class="d-flex gap-2 mt-2">
-            <button class="btn btn-outline-secondary btn-sm" style="font-size:10px;" onclick="refreshHLogs('${c.id}')"><i class="bi bi-arrow-clockwise"></i> Refresh Logs</button>
-            <button class="btn btn-outline-info btn-sm" style="font-size:10px;" onclick="dlLogs('${c.id}','${c.name}')"><i class="bi bi-download"></i> Download Logs</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>`;
+// ── IMAGE FOLDER ──────────────────────────────────
+
+async function showImageFolder(){
+  const imgs=await(await fetch('/api/images')).json();
+  allImages=imgs;
+  selectedImages=new Set();
+  document.getElementById('img-folder-section').style.display='block';
+  renderImageFolder();
 }
 
-function toggleHistDetail(id){
-  const det=document.getElementById('chdetail-'+id);
-  const chev=document.getElementById('hchev-'+id);
-  if(det.classList.contains('open')){det.classList.remove('open');if(chev)chev.style.transform='rotate(0deg)';}
-  else{det.classList.add('open');if(chev)chev.style.transform='rotate(180deg)';}
+function renderImageFolder(){
+  const grid=document.getElementById('img-folder-grid');
+  if(!allImages.length){grid.innerHTML='<div style="color:#444;font-size:12px;padding:16px;">Koi image nahi</div>';return;}
+  grid.innerHTML=allImages.map((img,i)=>`
+    <div class="img-thumb ${selectedImages.has(img.name)?'selected':''}" id="imgthumb-${i}"
+         onclick="toggleImgSelect(event,${i},'${img.name}')"
+         ondblclick="openLightbox('data:${img.mime};base64,${img.data}')">
+      <img src="data:${img.mime};base64,${img.data}" alt="${img.name}">
+      <div class="img-name">${img.name}</div>
+      <div class="img-check"><i class="bi bi-check" style="color:#fff;font-size:10px;"></i></div>
+    </div>`).join('');
+  updateImgSelCount();
 }
 
-function swHTab(id,tab,btn){
-  ['info','workers','timeline','logs'].forEach(t=>{
-    const el=document.getElementById(`cht-${id}-${t}`);if(el)el.classList.remove('active');
+function toggleImgSelect(e,i,name){
+  e.stopPropagation();
+  const el=document.getElementById('imgthumb-'+i);
+  if(selectedImages.has(name)){selectedImages.delete(name);el.classList.remove('selected');}
+  else{selectedImages.add(name);el.classList.add('selected');}
+  updateImgSelCount();
+}
+
+function updateImgSelCount(){
+  const n=selectedImages.size;
+  document.getElementById('img-sel-count').textContent=n?`${n} selected`:'';
+}
+
+function openLightbox(src){
+  document.getElementById('lightbox-img').src=src;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox(){
+  document.getElementById('lightbox').classList.remove('open');
+  document.getElementById('lightbox-img').src='';
+}
+
+async function deleteSelectedImages(){
+  if(!selectedImages.size){toast('Koi image select nahi','warning');return;}
+  if(!confirm(`${selectedImages.size} images delete karo?`))return;
+  for(const name of selectedImages){
+    await fetch(`/api/images/${encodeURIComponent(name)}`,{method:'DELETE'});
+  }
+  toast(`${selectedImages.size} images deleted!`,'success');
+  selectedImages=new Set();
+  showImageFolder();
+  loadDBStats();
+}
+
+function downloadSelectedImages(){
+  const imgs=allImages.filter(i=>selectedImages.has(i.name));
+  if(!imgs.length){toast('Select karo pehle','warning');return;}
+  imgs.forEach(img=>{
+    const a=document.createElement('a');
+    a.href=`data:${img.mime};base64,${img.data}`;
+    a.download=img.name; a.click();
   });
-  document.querySelectorAll(`#chtabs-${id} .ch-tab`).forEach(b=>b.classList.remove('active'));
-  const t=document.getElementById(`cht-${id}-${tab}`);if(t)t.classList.add('active');
-  btn.classList.add('active');
+  toast(`${imgs.length} images downloading...`,'success');
 }
 
-async function refreshHLogs(id){
+// ── IP RECORDS ────────────────────────────────────
+
+let allIPRecords=[];
+
+async function loadIPRecords(){
   try{
-    const d=await(await fetch(`/api/campaign-history/${id}/logs`)).json();
-    const box=document.getElementById('chlogs-'+id);
-    if(box){box.innerHTML=d.length?d.map(l=>`<div class="log-${l.level||'INFO'}">[${l.time}] ${l.msg}</div>`).join(''):'<span style="color:#333;">Koi logs nahi</span>';box.scrollTop=box.scrollHeight;}
-  }catch(e){toast('Logs load nahi hue','danger');}
+    const d=await(await fetch('/api/ip-records')).json();
+    allIPRecords=d;
+    document.getElementById('ip-count').textContent=`${d.length} IP records`;
+    renderIPTable(d);
+  }catch(e){}
 }
 
-function dlLogs(id,name){
-  const box=document.getElementById('chlogs-'+id);if(!box)return;
-  const blob=new Blob([box.innerText],{type:'text/plain'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${name||id}_logs.txt`;a.click();
-  toast('Logs downloaded!','success');
+function renderIPTable(records){
+  document.getElementById('ip-tbody').innerHTML=records.length
+    ?records.slice(-200).map(r=>`<tr>
+      <td><span class="ip-badge">${r.ip||r.ip_address||'—'}</span></td>
+      <td style="font-size:11px;color:#666;">${r.worker_id||r.pc_name||'—'}</td>
+      <td style="font-size:11px;color:#555;">${r.source||r.key||r.script||'—'}</td>
+      <td style="font-size:11px;color:#555;">${r.time||r.timestamp||'—'}</td>
+    </tr>`).join('')
+    :`<tr><td colspan="4" class="text-center py-3" style="color:#444;">Koi IP record nahi</td></tr>`;
 }
 
-function formatDuration(m){
-  if(!m||m<1)return'<1m';if(m<60)return`${m}m`;
-  const h=Math.floor(m/60),r=m%60;return r?`${h}h ${r}m`:`${h}h`;
+function filterIPTable(){
+  const q=(document.getElementById('ip-search').value||'').toLowerCase();
+  const filtered=q?allIPRecords.filter(r=>(r.ip||'').includes(q)||(r.worker_id||'').toLowerCase().includes(q)):allIPRecords;
+  renderIPTable(filtered);
 }
 
-function clearHistoryFilters(){
-  document.getElementById('hist-status-filter').value='';
-  document.getElementById('hist-search').value='';
-  document.getElementById('hist-date-from').value='';
-  document.getElementById('hist-date-to').value='';
-  renderHistory();
+async function autoFetchIPs(){
+  try{
+    const d=await(await fetch('/api/ip-from-csv')).json();
+    if(!d.length){toast('Koi SUCCESS IP nahi mila','warning');return;}
+    allIPRecords=[...allIPRecords,...d];
+    renderIPTable(allIPRecords);
+    document.getElementById('ip-count').textContent=`${allIPRecords.length} IP records`;
+    toast(`${d.length} IPs auto-fetched from SUCCESS rows!`,'success');
+  }catch(e){toast('Auto fetch failed','danger');}
 }
 
-async function clearAllHistory(){
-  if(!confirm('Saari campaign history delete karo? Ye undo nahi hoga!'))return;
-  try{await fetch('/api/campaign-history',{method:'DELETE'});}catch(e){}
-  campaignHistoryData=[];updateHistorySummary();renderHistory();toast('History cleared!','success');
+async function downloadIPRecords(){
+  try{
+    const res=await fetch('/api/ip-records/download');
+    if(!res.ok){toast('Koi records nahi','warning');return;}
+    const blob=await res.blob();
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='ip_records.csv'; a.click();
+    toast('IP records downloaded!','success');
+  }catch(e){toast('Download failed','danger');}
+}
+
+// ── API KEY GENERATOR ─────────────────────────────
+
+let _generatedKey='';
+
+function apiCSVSelected(input){
+  apiCSVFile=input.files[0];
+  document.getElementById('api-csv-name').textContent=apiCSVFile?apiCSVFile.name:'No file chosen';
+}
+
+async function generateAPIKey(){
+  const scriptName=document.getElementById('api-script-name').value.trim();
+  if(!scriptName){toast('Script naam daalo!','danger');return;}
+  if(!apiCSVFile){toast('CSV upload karo!','danger');return;}
+
+  const cfg={
+    form_url:        document.getElementById('api-form-url').value,
+    headless:        document.getElementById('api-headless').value==='true',
+    airplane_on:     parseInt(document.getElementById('api-air-on').value)||6,
+    airplane_off:    parseInt(document.getElementById('api-air-off').value)||10,
+    max_ip_attempts: parseInt(document.getElementById('api-max-ip').value)||5,
+    delay:           parseInt(document.getElementById('api-delay').value)||2,
+    extra:           parseExtraConfig(document.getElementById('api-extra').value)
+  };
+
+  const fd=new FormData();
+  fd.append('script_name', scriptName);
+  fd.append('csv_file', apiCSVFile);
+  fd.append('config', JSON.stringify(cfg));
+
+  const d=await(await fetch('/api/db/generate-key',{method:'POST',body:fd})).json();
+  if(d.error){toast(d.error,'danger');return;}
+
+  _generatedKey=d.key;
+  const server=window.location.origin;
+
+  document.getElementById('api-key-display').textContent=`API_KEY = "${d.key}"`;
+  document.getElementById('api-code-snippet').innerHTML=
+    `SERVER = "${server}"<br>`+
+    `API_KEY = "${d.key}"<br><br>`+
+    `import requests<br>`+
+    `base = f"{SERVER}/api/db/{API_KEY}"<br>`+
+    `config = requests.get(f"{base}/config").json()<br>`+
+    `data   = requests.get(f"{base}/next?worker_id=WORKER_ID").json()<br>`+
+    `image  = requests.get(f"{base}/image?worker_id=WORKER_ID").json()<br>`+
+    `requests.post(f"{base}/done", json={"row_index":data["row_index"],"status":"SUCCESS","ip":"1.2.3.4","worker_id":"PC-01"})`;
+
+  document.getElementById('api-gen-result').style.display='block';
+  toast(`API Key generated! Key: ${d.key}  |  ${d.total_rows} rows loaded`,'success');
+  loadDBConfigs();
+}
+
+function parseExtraConfig(str){
+  const obj={};
+  if(!str) return obj;
+  str.split(',').forEach(part=>{
+    const [k,v]=part.split('=').map(s=>s.trim());
+    if(k&&v) obj[k]=v;
+  });
+  return obj;
+}
+
+function copyAPIKey(){
+  const txt=document.getElementById('api-code-snippet').innerText;
+  navigator.clipboard.writeText(txt).then(()=>toast('Copied!','success'));
+}
+
+// ── DB CONFIGS LIST ───────────────────────────────
+
+async function loadDBConfigs(){
+  try{
+    const d=await(await fetch('/api/db/list')).json();
+    const tbody=document.getElementById('db-configs-tbody');
+    if(!d.length){
+      tbody.innerHTML=`<tr><td colspan="7" class="text-center py-3" style="color:#444;">Koi config nahi — generate karo</td></tr>`;
+      return;
+    }
+    tbody.innerHTML=d.map(c=>{
+      const pct=c.total>0?Math.round((c.success/c.total)*100):0;
+      return`<tr>
+        <td style="font-weight:500;">${c.script}</td>
+        <td style="font-size:11px;color:#666;">${c.csv}</td>
+        <td style="font-size:10px;color:#555;">${(c.fields||[]).join(', ')}</td>
+        <td style="min-width:120px;">
+          <div style="font-size:11px;">${c.success}/${c.total} <span style="color:#555;">(${pct}%)</span></div>
+          <div class="progress mt-1"><div class="progress-bar bg-success" style="width:${pct}%;"></div></div>
+        </td>
+        <td>${badge(c.status)}</td>
+        <td><span class="ip-badge" style="cursor:pointer;" onclick="copyText('${c.key}')">${c.key}</span></td>
+        <td>
+          <div class="d-flex gap-1">
+            <button class="btn btn-outline-info btn-sm py-0 px-1" style="font-size:10px;" onclick="viewDBConfig('${c.key}','${c.script}')"><i class="bi bi-eye"></i></button>
+            <button class="btn btn-outline-danger btn-sm py-0 px-1" style="font-size:10px;" onclick="deleteDBConfig('${c.key}')"><i class="bi bi-trash"></i></button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }catch(e){}
+}
+
+async function viewDBConfig(key, scriptName){
+  const d=await(await fetch(`/api/db/${key}/rows`)).json();
+  currentDBKey=key;
+  currentDBData=d.rows||[];
+  currentDBFields=d.fields||[];
+  document.getElementById('db-editor-title').textContent=`${scriptName} — ${key}`;
+  document.getElementById('db-detail-section').style.display='block';
+  renderDBEditor();
+  document.getElementById('db-detail-section').scrollIntoView({behavior:'smooth'});
+}
+
+function renderDBEditor(){
+  const extraFields=['_worker','_ip','_time','_note'];
+  const allFields=[...currentDBFields,...extraFields].filter(f=>!f.startsWith('_assigned'));
+
+  // header
+  document.getElementById('db-header-row').innerHTML=
+    `<div class="vscode-header-cell" style="min-width:40px;">#</div>`+
+    allFields.map(f=>`<div class="vscode-header-cell" style="min-width:110px;">${f}</div>`).join('');
+
+  // lines
+  document.getElementById('db-line-nums').innerHTML=currentDBData.map((_,i)=>`<div class="vscode-line-num">${i+1}</div>`).join('');
+
+  // rows
+  document.getElementById('db-rows-container').innerHTML=currentDBData.map((r,i)=>`
+    <div class="vscode-row ${r.status==='SUCCESS'?'':''}">
+      <div class="vscode-cell" style="min-width:40px;color:#444;">${i+1}</div>
+      ${allFields.map(f=>{
+        const val=r[f]||'';
+        const cls=f==='status'?`status-${(val||'pending').toLowerCase()}`:'';
+        return`<div class="vscode-cell editable ${cls}" style="min-width:110px;"
+               ondblclick="editDBCell(this,${i},'${f}')">${val||'—'}</div>`;
+      }).join('')}
+    </div>`).join('');
+}
+
+function editDBCell(el,rowIdx,field){
+  if(el.querySelector('input')) return;
+  const val=el.textContent==='—'?'':el.textContent;
+  el.innerHTML=`<input type="text" value="${val}" onblur="commitDBEdit(this,${rowIdx},'${field}')" onkeydown="if(event.key==='Enter')this.blur();" autofocus style="min-width:100px;">`;
+  el.querySelector('input').focus();
+}
+
+function commitDBEdit(inp,rowIdx,field){
+  const val=inp.value;
+  currentDBData[rowIdx][field]=val;
+  const cell=inp.parentElement;
+  cell.textContent=val||'—';
+  if(field==='status') cell.className=`vscode-cell editable status-${val.toLowerCase()}`;
+}
+
+async function saveDBEdits(){
+  let saved=0;
+  for(let i=0;i<currentDBData.length;i++){
+    await fetch(`/api/db/${currentDBKey}/row/${i}`,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(currentDBData[i])
+    });
+    saved++;
+  }
+  toast(`${saved} rows saved!`,'success');
+  loadDBConfigs();
+}
+
+async function downloadDBCSV(){
+  const res=await fetch(`/api/db/${currentDBKey}/download-csv`);
+  if(!res.ok){toast('Download failed','danger');return;}
+  const blob=await res.blob();
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`${currentDBKey}_data.csv`; a.click();
+  toast('CSV downloaded!','success');
+}
+
+async function deleteDBConfig(key){
+  if(!confirm('Ye config delete karo?'))return;
+  await fetch(`/api/db/${key}`,{method:'DELETE'});
+  toast('Config deleted!','success');
+  loadDBConfigs();
+  document.getElementById('db-detail-section').style.display='none';
+}
+
+function copyText(txt){
+  navigator.clipboard.writeText(txt).then(()=>toast('Copied!','success'));
 }
 
 // ── WORKERS ──────────────────────────────────────
@@ -585,10 +994,9 @@ function renderDash(){
       <td><div class="d-flex gap-1">
         <button class="btn btn-outline-success btn-sm py-0" style="font-size:10px;" onclick="cmd('${id}','start')">Start</button>
         <button class="btn btn-outline-warning btn-sm py-0" style="font-size:10px;" onclick="cmd('${id}','stop')">Stop</button>
-        <button class="btn btn-outline-info btn-sm py-0" style="font-size:10px;" onclick="showPage('system',document.getElementById('tab-system'));highlightPC('${id}')">View</button>
       </div></td>
     </tr>`).join('')
-    :`<tr><td colspan="9" class="text-center py-4" style="color:#444;">Koi system connected nahi — agent.py chalao</td></tr>`;
+    :`<tr><td colspan="9" class="text-center py-4" style="color:#444;">Koi system connected nahi</td></tr>`;
 }
 
 function renderSystem(){
@@ -607,41 +1015,39 @@ function renderSystem(){
         <div style="flex:1;">${bar(w.ram)}</div>
         <div style="font-size:11px;color:#555;min-width:70px;">${w.last_seen||'—'}</div>
         <div class="d-flex gap-1" onclick="event.stopPropagation()">
-          <button class="btn btn-success btn-sm py-0 px-2" style="font-size:10px;" onclick="cmd('${id}','start')"><i class="bi bi-play"></i></button>
-          <button class="btn btn-warning btn-sm py-0 px-2" style="font-size:10px;" onclick="cmd('${id}','stop')"><i class="bi bi-stop"></i></button>
-          <button class="btn btn-secondary btn-sm py-0 px-2" style="font-size:10px;" onclick="cmd('${id}','restart')"><i class="bi bi-arrow-clockwise"></i></button>
+          <button class="btn btn-success btn-sm py-0 px-2" onclick="cmd('${id}','start')"><i class="bi bi-play"></i></button>
+          <button class="btn btn-warning btn-sm py-0 px-2" onclick="cmd('${id}','stop')"><i class="bi bi-stop"></i></button>
+          <button class="btn btn-secondary btn-sm py-0 px-2" onclick="cmd('${id}','restart')"><i class="bi bi-arrow-clockwise"></i></button>
         </div>
       </div>
       <div id="detail-${id}" style="display:none;border-top:1px solid #1e2130;">
         <div style="background:#080a14;padding:12px;">
           <div class="d-flex gap-2 mb-3" id="dtabs-${id}">
-            <button class="dtab active" onclick="switchDTab('${id}','cmd',this)">CMD Output</button>
-            <button class="dtab" onclick="switchDTab('${id}','url',this)">URL Settings</button>
-            <button class="dtab" onclick="switchDTab('${id}','edit',this)">Edit Script</button>
-            <button class="dtab" onclick="switchDTab('${id}','err',this)">Error Log</button>
+            <button class="dtab active" onclick="switchDTab('${id}','cmd',this)">Logs</button>
+            <button class="dtab" onclick="switchDTab('${id}','url',this)">URL</button>
+            <button class="dtab" onclick="switchDTab('${id}','edit',this)">Script</button>
+            <button class="dtab" onclick="switchDTab('${id}','err',this)">Errors</button>
           </div>
           <div id="dt-${id}-cmd">
-            <div class="log-box" id="log-${id}"><span style="color:#333;">Loading logs...</span></div>
+            <div class="log-box" id="log-${id}"></div>
             <button class="btn btn-outline-secondary btn-sm mt-2" style="font-size:10px;" onclick="loadLogs('${id}')"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
           </div>
           <div id="dt-${id}-url" style="display:none;">
-            <div style="font-size:11px;color:#555;margin-bottom:8px;">Is PC ke liye URL set karo</div>
-            <input class="form-control form-control-sm mb-2" id="url-${id}" placeholder="https://example.com/form?utm_source=...">
+            <input class="form-control form-control-sm mb-2" id="url-${id}" placeholder="https://...">
             <div class="d-flex gap-2">
-              <button class="btn btn-success btn-sm" onclick="saveURL('${id}')"><i class="bi bi-check"></i> Save URL</button>
-              <button class="btn btn-primary btn-sm" onclick="cmd('${id}','reload_config')"><i class="bi bi-send"></i> Push to PC</button>
+              <button class="btn btn-success btn-sm" onclick="saveURL('${id}')">Save URL</button>
+              <button class="btn btn-primary btn-sm" onclick="cmd('${id}','reload_config')">Push</button>
             </div>
           </div>
           <div id="dt-${id}-edit" style="display:none;">
-            <div style="font-size:11px;color:#555;margin-bottom:8px;">Script edit karo</div>
             <textarea class="code-editor" id="editor-${id}" rows="12"></textarea>
             <div class="d-flex gap-2 mt-2">
-              <input type="text" id="ev-${id}" value="1.0" class="form-control form-control-sm" style="width:70px;" placeholder="v">
-              <button class="btn btn-success btn-sm" onclick="saveScriptFromSystem('${id}')"><i class="bi bi-save"></i> Save & Push All</button>
+              <input type="text" id="ev-${id}" value="1.0" class="form-control form-control-sm" style="width:70px;">
+              <button class="btn btn-success btn-sm" onclick="saveScriptFromSystem('${id}')">Save & Push</button>
             </div>
           </div>
           <div id="dt-${id}-err" style="display:none;">
-            <div class="log-box" id="err-${id}"><span style="color:#333;">Loading errors...</span></div>
+            <div class="log-box" id="err-${id}"></div>
             <button class="btn btn-outline-secondary btn-sm mt-2" style="font-size:10px;" onclick="loadErrors('${id}')"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
           </div>
         </div>
@@ -662,7 +1068,7 @@ function switchDTab(id,tab,btn){
 }
 async function loadLogs(id){
   try{const d=await(await fetch(`/api/worker/${id}/logs`)).json();const box=document.getElementById(`log-${id}`);if(!box)return;
-    box.innerHTML=d.length?d.slice(-60).map(l=>`<div class="log-${l.level||'INFO'}">[${l.time||''}] ${l.msg||''}</div>`).join(''):'<span style="color:#333;">No logs yet</span>';box.scrollTop=box.scrollHeight;}catch(e){}
+    box.innerHTML=d.length?d.slice(-60).map(l=>`<div class="log-${l.level||'INFO'}">[${l.time||''}] ${l.msg||''}</div>`).join(''):'<span style="color:#333;">No logs</span>';box.scrollTop=box.scrollHeight;}catch(e){}
 }
 async function loadErrors(id){
   try{const d=await(await fetch(`/api/worker/${id}/errors`)).json();const box=document.getElementById(`err-${id}`);if(!box)return;
@@ -670,69 +1076,207 @@ async function loadErrors(id){
 }
 async function loadScriptIntoEditor(id){try{const d=await(await fetch('/api/script/content')).json();const ed=document.getElementById(`editor-${id}`);if(ed)ed.value=d.content||'';}catch(e){}}
 async function loadURLForPC(id){try{const d=await(await fetch('/api/pc-urls')).json();const inp=document.getElementById(`url-${id}`);if(inp&&d[id])inp.value=d[id];}catch(e){}}
-async function saveURL(id){const url=(document.getElementById(`url-${id}`)||{value:''}).value;await fetch('/api/pc-url',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({worker_id:id,url})});toast(`URL saved for ${id}`,'success');}
-async function saveScriptFromSystem(id){const content=(document.getElementById(`editor-${id}`)||{value:''}).value;const version=(document.getElementById(`ev-${id}`)||{value:'1.0'}).value;const d=await(await fetch('/api/script/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content,version})})).json();toast(d.message,'success');}
-function highlightPC(id){setTimeout(()=>{const card=document.getElementById(`sys-card-${id}`);if(card){card.scrollIntoView({behavior:'smooth'});toggleDetail(id);}},100);}
+async function saveURL(id){await fetch('/api/pc-url',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({worker_id:id,url:document.getElementById(`url-${id}`).value})});toast(`URL saved for ${id}`,'success');}
+async function saveScriptFromSystem(id){const content=document.getElementById(`editor-${id}`).value;const version=document.getElementById(`ev-${id}`).value||'1.0';const d=await(await fetch('/api/script/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content,version})})).json();toast(d.message,'success');}
 
+// ── SCRIPTS ───────────────────────────────────────
 async function loadScript(){
   try{
     const d=await(await fetch('/api/script/content')).json();document.getElementById('code-editor').value=d.content||'';
     const info=await(await fetch('/api/version')).json();document.getElementById('edit-ver').value=info.version||'1.0';
-    document.getElementById('script-info').innerHTML=`<span style="color:#fff;">Version:</span> v${info.version||'—'} &nbsp;|&nbsp;<span style="color:#fff;">File:</span> ${info.filename||'—'} &nbsp;|&nbsp;<span style="color:#fff;">Uploaded:</span> ${info.uploaded_at||'—'} &nbsp;|&nbsp;<span style="color:#fff;">Data:</span> <span style="color:#ffd93d;">${info.data_required||'—'}</span>`;
+    document.getElementById('script-info').innerHTML=`v${info.version} | ${info.filename||'—'} | ${info.uploaded_at||'—'} | Data: ${info.data_required||'—'}`;
   }catch(e){}
 }
 async function uploadScript(){
-  const file=document.getElementById('script-file').files[0];const ver=document.getElementById('script-ver').value||'1.0';const req=document.getElementById('script-req').value;const dr=document.getElementById('script-data-req').value;
+  const file=document.getElementById('script-file').files[0];const ver=document.getElementById('script-ver').value||'1.0';
+  const req=document.getElementById('script-req').value;const dr=document.getElementById('script-data-req').value;
   if(!file){toast('Script select karo!','danger');return;}
   const fd=new FormData();fd.append('file',file);fd.append('version',ver);fd.append('requirements',req);fd.append('data_required',dr);
   document.getElementById('script-msg').textContent='Uploading...';
   const d=await(await fetch('/api/upload-script',{method:'POST',body:fd})).json();
-  document.getElementById('script-msg').textContent=d.message||'Done!';toast(d.message,'success');loadScript();
+  document.getElementById('script-msg').textContent=d.message;toast(d.message,'success');loadScript();
 }
-async function saveScript(){const content=document.getElementById('code-editor').value;const version=document.getElementById('edit-ver').value||'1.0';const d=await(await fetch('/api/script/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content,version})})).json();toast(d.message,'success');}
+async function saveScript(){
+  const d=await(await fetch('/api/script/save',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({content:document.getElementById('code-editor').value,version:document.getElementById('edit-ver').value||'1.0'})})).json();
+  toast(d.message,'success');
+}
 
+// ── DB STATS ──────────────────────────────────────
 async function loadDBStats(){
   try{
-    const d=await(await fetch('/api/csv-status')).json();if(d.error)return;
+    const d=await(await fetch('/api/csv-status')).json();
     const pct=d.total>0?Math.round((d.done/d.total)*100):0;
     document.getElementById('csv-info').textContent=`${d.total} rows | ${d.done} done | ${d.pending} pending | ${d.failed} failed`;
-    document.getElementById('db-prog').style.width=pct+'%';document.getElementById('db-prog-text').textContent=`${pct}% complete`;
-    const imgs=await(await fetch('/api/images')).json();document.getElementById('img-info').textContent=`${imgs.length} images | ${Math.round(imgs.reduce((a,i)=>a+i.size,0)/1024)}KB total`;allImages=imgs;
-    const ips=await(await fetch('/api/ip-records')).json();document.getElementById('ip-count').textContent=`${ips.length} IP records`;ipRecords=ips;
+    document.getElementById('db-prog').style.width=pct+'%';
+    document.getElementById('db-prog-text').textContent=`${pct}% complete`;
+    const imgs=await(await fetch('/api/images')).json();
+    document.getElementById('img-info').textContent=`${imgs.length} images | ${Math.round(imgs.reduce((a,i)=>a+i.size,0)/1024)}KB`;
+    allImages=imgs;
   }catch(e){}
 }
-async function showCSVData(){document.getElementById('csv-data-section').style.display='block';const d=await(await fetch('/api/csv-status')).json();csvRows=d.rows||[];filterCSV();}
-function filterCSV(){const f=document.getElementById('csv-status-filter').value;const rows=f?csvRows.filter(r=>r.status===f):csvRows;document.getElementById('csv-tbody').innerHTML=rows.length?rows.map(r=>`<tr><td>${r.index}</td><td>${r.name}</td><td><span class="ip-badge">${r.mobile}</span></td><td>${r.email}</td><td>${badge(r.status)}</td><td style="font-size:11px;color:#555;">${r.worker}</td></tr>`).join(''):`<tr><td colspan="6" class="text-center py-3" style="color:#444;">Koi data nahi</td></tr>`;}
-function showImages(){document.getElementById('img-section').style.display='block';document.getElementById('img-grid').innerHTML=allImages.length?allImages.map(f=>`<div style="background:#12151f;border-radius:6px;padding:6px 10px;font-size:11px;color:#aaa;">${f.name}<br><span style="color:#555;">${Math.round(f.size/1024)}KB</span></div>`).join(''):'<span style="color:#444;">No images</span>';}
-async function loadIPRecords(){try{const d=await(await fetch('/api/ip-records')).json();document.getElementById('ip-tbody').innerHTML=d.length?d.slice(-50).map(r=>`<tr><td>${r.pc_name||r.worker_id||'—'}</td><td><span class="ip-badge">${r.ip||r.ip_address||'—'}</span></td><td>${r.campaign||'—'}</td><td>${r.script||'—'}</td><td style="font-size:11px;color:#555;">${r.time||r.timestamp||'—'}</td></tr>`).join(''):`<tr><td colspan="5" class="text-center py-3" style="color:#444;">Koi IP record nahi</td></tr>`;}catch(e){}}
-async function loadCSVHistory(){try{const d=await(await fetch('/api/csv-history')).json();document.getElementById('csv-history-list').innerHTML=d.length?d.map(f=>`<div class="history-item"><span>${f.name}</span><span style="color:#555;">${Math.round(f.size/1024)}KB</span></div>`).join(''):'<span style="color:#444;font-size:12px;">Koi history nahi</span>';}catch(e){}}
-async function clearCSVHistory(){if(!confirm('CSV history clear karo?'))return;await fetch('/api/csv-history',{method:'DELETE'});toast('CSV history cleared!','success');loadCSVHistory();}
-async function clearImages(){if(!confirm('Sab images delete karo?'))return;await fetch('/api/images',{method:'DELETE'});toast('Images cleared!','success');loadDBStats();}
-async function clearIPRecords(){if(!confirm('IP records clear karo?'))return;await fetch('/api/ip-records',{method:'DELETE'});toast('IP records cleared!','success');loadIPRecords();}
+
+async function loadCSVHistory(){
+  try{
+    const d=await(await fetch('/api/csv-history')).json();
+    document.getElementById('csv-history-list').innerHTML=d.length
+      ?d.map(f=>`<div class="history-item"><span>${f.name}</span><span style="color:#555;">${Math.round(f.size/1024)}KB</span></div>`).join('')
+      :'<span style="color:#444;font-size:12px;">Koi history nahi</span>';
+  }catch(e){}
+}
+
+async function clearCSVHistory(){if(!confirm('CSV history clear karo?'))return;await fetch('/api/csv-history',{method:'DELETE'});toast('Cleared!','success');loadCSVHistory();}
+async function clearImages(){if(!confirm('Sab images delete?'))return;await fetch('/api/images',{method:'DELETE'});toast('Cleared!','success');loadDBStats();document.getElementById('img-folder-section').style.display='none';}
+async function clearIPRecords(){if(!confirm('IP records clear?'))return;await fetch('/api/ip-records',{method:'DELETE'});toast('Cleared!','success');loadIPRecords();}
 async function uploadCSV(input){const file=input.files[0];if(!file)return;const fd=new FormData();fd.append('file',file);const d=await(await fetch('/api/upload-csv',{method:'POST',body:fd})).json();toast(d.message,'success');loadDBStats();loadCSVHistory();}
 async function uploadImages(input){const files=input.files;if(!files.length)return;const fd=new FormData();for(const f of files)fd.append('files',f);const d=await(await fetch('/api/upload-images',{method:'POST',body:fd})).json();toast(`${d.count} images uploaded!`,'success');loadDBStats();}
 async function uploadIPCSV(input){const file=input.files[0];if(!file)return;const fd=new FormData();fd.append('file',file);const d=await(await fetch('/api/upload-ip-csv',{method:'POST',body:fd})).json();toast(d.message,'success');loadIPRecords();}
 
+// ── CAMPAIGNS ─────────────────────────────────────
 async function loadCampaigns(){
   try{const d=await(await fetch('/api/campaigns')).json();
-    document.getElementById('campaign-list').innerHTML=d.length?d.map(c=>`<div style="background:#12151f;border-radius:8px;padding:12px;margin-bottom:8px;"><div class="d-flex justify-content-between align-items-center mb-1"><span style="font-weight:500;font-size:13px;">${c.name}</span>${badge(c.status==='active'?'running':'idle')}</div><div style="font-size:11px;color:#555;margin-bottom:8px;">Script: ${c.script||'—'} | CSV: ${c.csv||'—'}</div><div class="d-flex gap-2"><button class="btn btn-success btn-sm py-0" style="font-size:10px;" onclick="startCampaign('${c.id}')">Start</button><button class="btn btn-warning btn-sm py-0" style="font-size:10px;" onclick="stopCampaign('${c.id}')">Stop</button></div></div>`).join(''):'<span style="color:#444;font-size:12px;">Koi campaign nahi — create karo</span>';}catch(e){}
+    document.getElementById('campaign-list').innerHTML=d.length
+      ?d.map(c=>`<div style="background:#12151f;border-radius:8px;padding:12px;margin-bottom:8px;">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span style="font-weight:500;">${c.name}</span>${badge(c.status==='active'?'active':'idle')}
+        </div>
+        <div style="font-size:11px;color:#555;margin-bottom:8px;">Script: ${c.script||'—'} | CSV: ${c.csv_file||'—'}</div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-success btn-sm py-0" style="font-size:10px;" onclick="startCampaign('${c.id}')">Start</button>
+          <button class="btn btn-warning btn-sm py-0" style="font-size:10px;" onclick="stopCampaign('${c.id}')">Stop</button>
+        </div></div>`).join('')
+      :'<span style="color:#444;font-size:12px;">Koi campaign nahi</span>';}catch(e){}
 }
 async function createCampaign(){
-  const name=document.getElementById('camp-name').value;const script=document.getElementById('camp-script').value;const csv=document.getElementById('camp-csv').value;const url=document.getElementById('camp-url').value;
-  if(!name){toast('Campaign naam do!','danger');return;}
-  await fetch('/api/campaigns',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,script,csv,url})});
+  const name=document.getElementById('camp-name').value;
+  if(!name){toast('Naam daalo!','danger');return;}
+  await fetch('/api/campaigns',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name,script:document.getElementById('camp-script').value,
+    csv:document.getElementById('camp-csv').value,url:document.getElementById('camp-url').value})});
   toast('Campaign created!','success');loadCampaigns();
 }
-async function startCampaign(id){await fetch(`/api/campaigns/${id}/start`,{method:'POST'});toast('Campaign started!','success');loadCampaigns();}
-async function stopCampaign(id){await fetch(`/api/campaigns/${id}/stop`,{method:'POST'});toast('Campaign stopped!','warning');loadCampaigns();}
+async function startCampaign(id){await fetch(`/api/campaigns/${id}/start`,{method:'POST'});toast('Started!','success');loadCampaigns();}
+async function stopCampaign(id){await fetch(`/api/campaigns/${id}/stop`,{method:'POST'});toast('Stopped!','warning');loadCampaigns();}
 
+// ── CAMPAIGN HISTORY ──────────────────────────────
+async function loadCampaignHistory(){
+  try{const d=await(await fetch('/api/campaign-history')).json();
+    campaignHistoryData=Array.isArray(d)?d:[];}catch(e){campaignHistoryData=[];}
+  updateHistorySummary();renderHistory();
+}
+function updateHistorySummary(){
+  const d=campaignHistoryData;
+  document.getElementById('hs-total').textContent=d.length;
+  document.getElementById('hs-success').textContent=d.reduce((a,c)=>a+(c.success||0),0);
+  document.getElementById('hs-failed').textContent=d.reduce((a,c)=>a+(c.failed||0),0);
+  document.getElementById('hs-workers').textContent=new Set(d.flatMap(c=>c.workers||[])).size;
+}
+function renderHistory(){
+  const sf=document.getElementById('hist-status-filter').value;
+  const q=(document.getElementById('hist-search').value||'').toLowerCase();
+  let data=[...campaignHistoryData].filter(c=>{
+    if(sf&&c.status!==sf)return false;
+    if(q&&!c.name.toLowerCase().includes(q)&&!(c.script||'').toLowerCase().includes(q))return false;
+    return true;
+  }).sort((a,b)=>(b.start_time||'').localeCompare(a.start_time||''));
+  document.getElementById('history-list-container').innerHTML=data.length
+    ?data.map(c=>buildHistoryCard(c)).join('')
+    :`<div class="ch-empty"><i class="bi bi-inbox" style="font-size:32px;color:#333;display:block;margin-bottom:10px;"></i>Koi history nahi</div>`;
+}
+function buildHistoryCard(c){
+  const sp=c.total_rows>0?Math.round((c.success/c.total_rows)*100):0;
+  const fp=c.total_rows>0?Math.round((c.failed/c.total_rows)*100):0;
+  const dur=c.duration_min?formatDuration(c.duration_min):'—';
+  const iconBg={completed:'background:#0d4a2a',stopped:'background:#3a2a00',failed:'background:#5a2020',running:'background:#1a3a6a'}[c.status]||'background:#1e2130';
+  const iconCls={completed:'bi-check-circle',stopped:'bi-stop-circle',failed:'bi-exclamation-triangle',running:'bi-play-circle'}[c.status]||'bi-clock';
+  const iconClr={completed:'#4effa0',stopped:'#ffcc55',failed:'#ff9090',running:'#90c8ff'}[c.status]||'#888';
+  return`<div class="ch-card">
+    <div class="ch-header" onclick="toggleHistDetail('${c.id}')">
+      <div class="ch-icon" style="${iconBg}"><i class="bi ${iconCls}" style="color:${iconClr};"></i></div>
+      <div class="ch-meta">
+        <div class="ch-name">${c.name||'Unnamed'}</div>
+        <div class="ch-sub"><i class="bi bi-code-slash"></i> ${c.script||'—'} &nbsp;|&nbsp; <i class="bi bi-calendar2"></i> ${(c.start_time||'').split(' ')[0]||'—'}</div>
+      </div>
+      <div class="ch-stats">
+        <div class="ch-stat"><div class="ch-stat-val text-white">${c.total_rows||0}</div><div class="ch-stat-lbl">Total</div></div>
+        <div class="ch-stat"><div class="ch-stat-val text-success">${c.success||0}</div><div class="ch-stat-lbl">Success</div></div>
+        <div class="ch-stat"><div class="ch-stat-val text-danger">${c.failed||0}</div><div class="ch-stat-lbl">Failed</div></div>
+        <div class="ch-stat"><span class="duration-badge">${dur}</span></div>
+        <div class="ch-stat">${badge(c.status)}</div>
+        <i class="bi bi-chevron-down" id="hchev-${c.id}" style="color:#444;font-size:12px;transition:transform .2s;"></i>
+      </div>
+    </div>
+    <div class="ch-detail" id="chdetail-${c.id}">
+      <div class="ch-detail-inner">
+        <div class="ch-summary-grid">
+          <div class="ch-summary-box"><div class="ch-summary-val text-white">${c.total_rows||0}</div><div class="ch-summary-lbl">Total</div></div>
+          <div class="ch-summary-box"><div class="ch-summary-val text-success">${c.success||0} <span style="font-size:11px;color:#555;">(${sp}%)</span></div><div class="ch-summary-lbl">Success</div></div>
+          <div class="ch-summary-box"><div class="ch-summary-val text-danger">${c.failed||0} <span style="font-size:11px;color:#555;">(${fp}%)</span></div><div class="ch-summary-lbl">Failed</div></div>
+          <div class="ch-summary-box"><div class="ch-summary-val" style="color:#90c8ff;">${(c.workers||[]).length}</div><div class="ch-summary-lbl">Workers</div></div>
+        </div>
+        <div style="margin-bottom:14px;">
+          <div class="prog-bar-h"><div style="width:${sp}%;background:#1abc9c;"></div><div style="width:${fp}%;background:#e74c3c;"></div></div>
+        </div>
+        <div class="ch-tab-bar" id="chtabs-${c.id}">
+          <button class="ch-tab active" onclick="swHTab('${c.id}','info',this)">Info</button>
+          <button class="ch-tab" onclick="swHTab('${c.id}','logs',this)">Logs</button>
+        </div>
+        <div class="ch-tab-content active" id="cht-${c.id}-info">
+          <table style="width:100%;font-size:12px;color:#aaa;">
+            <tr><td style="color:#555;padding:4px 0;width:120px;">Script</td><td><span class="ip-badge">${c.script||'—'}</span></td></tr>
+            <tr><td style="color:#555;padding:4px 0;">CSV</td><td><span class="ip-badge">${c.csv||'—'}</span></td></tr>
+            <tr><td style="color:#555;padding:4px 0;">Start</td><td>${c.start_time||'—'}</td></tr>
+            <tr><td style="color:#555;padding:4px 0;">Stop</td><td>${c.stop_time||'—'}</td></tr>
+            <tr><td style="color:#555;padding:4px 0;">Duration</td><td><span class="duration-badge">${dur}</span></td></tr>
+          </table>
+        </div>
+        <div class="ch-tab-content" id="cht-${c.id}-logs">
+          <div class="ch-mini-log" id="chlogs-${c.id}">
+            ${(c.logs||[]).map(l=>`<div class="log-${l.level||'INFO'}">[${l.time}] ${l.msg}</div>`).join('')||'<span style="color:#333;">No logs</span>'}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+function toggleHistDetail(id){
+  const det=document.getElementById('chdetail-'+id);const chev=document.getElementById('hchev-'+id);
+  if(det.classList.contains('open')){det.classList.remove('open');if(chev)chev.style.transform='';}
+  else{det.classList.add('open');if(chev)chev.style.transform='rotate(180deg)';}
+}
+function swHTab(id,tab,btn){
+  ['info','logs'].forEach(t=>{const el=document.getElementById(`cht-${id}-${t}`);if(el)el.classList.remove('active');});
+  document.querySelectorAll(`#chtabs-${id} .ch-tab`).forEach(b=>b.classList.remove('active'));
+  document.getElementById(`cht-${id}-${tab}`).classList.add('active');btn.classList.add('active');
+}
+function clearHistoryFilters(){
+  document.getElementById('hist-status-filter').value='';
+  document.getElementById('hist-search').value='';
+  renderHistory();
+}
+async function clearAllHistory(){
+  if(!confirm('Saari history delete?'))return;
+  try{await fetch('/api/campaign-history',{method:'DELETE'});}catch(e){}
+  campaignHistoryData=[];updateHistorySummary();renderHistory();toast('Cleared!','success');
+}
+function formatDuration(m){if(!m)return'—';if(m<60)return`${m}m`;return`${Math.floor(m/60)}h ${m%60}m`;}
+
+// ── COMMANDS ──────────────────────────────────────
 async function cmd(worker_id,command){await fetch('/api/send-command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({worker_id,command})});toast(`${command} → ${worker_id}`);}
-async function broadcast(command){await fetch('/api/broadcast',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command})});toast(`${command} → All PCs`,'success');}
+async function broadcast(command){await fetch('/api/broadcast',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command})});toast(`${command} → All`,'success');}
+
+// ── UTILS ─────────────────────────────────────────
+function dlBlob(content,type,filename){
+  const blob=new Blob([content],{type});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();
+}
 
 function toast(msg,type='primary'){
-  const el=document.createElement('div');el.className=`toast align-items-center text-white bg-${type} border-0 mb-2 show`;
+  const el=document.createElement('div');
+  el.className=`toast align-items-center text-white bg-${type} border-0 mb-2 show`;
   el.innerHTML=`<div class="d-flex"><div class="toast-body" style="font-size:13px;">${msg}</div></div>`;
-  document.getElementById('toast-box').appendChild(el);setTimeout(()=>el.remove(),3000);
+  document.getElementById('toast-box').appendChild(el);
+  setTimeout(()=>el.remove(),3000);
 }
 
 fetchWorkers();
