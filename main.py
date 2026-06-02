@@ -28,9 +28,19 @@ for d in ["scripts","configs","csv_data/used","csv_data/history",
     os.makedirs(d, exist_ok=True)
 
 # ── SECURITY CONFIG ───────────────────────────────
-ADMIN_USER    = os.environ.get("ADMIN_USER", "admin")
-ADMIN_PASS    = os.environ.get("ADMIN_PASS", "admin123")
-WORKER_SECRET = os.environ.get("WORKER_SECRET", secrets.token_hex(32))
+ADMIN_USER = os.environ.get("ADMIN_USER")
+
+ADMIN_PASS = os.environ.get("ADMIN_PASS")
+
+if not ADMIN_USER or not ADMIN_PASS:
+    raise RuntimeError(
+        "ADMIN_USER and ADMIN_PASS environment variables are required"
+    )
+
+WORKER_SECRET = os.environ.get(
+    "WORKER_SECRET",
+    secrets.token_hex(32)
+)
 SESSION_HOURS = 24
 
 def hash_password(password: str) -> bytes:
@@ -160,7 +170,7 @@ def init_db():
             status TEXT DEFAULT 'active',
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
-
+fv
         CREATE TABLE IF NOT EXISTS app_state (
             key TEXT PRIMARY KEY,
             value TEXT
