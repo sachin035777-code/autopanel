@@ -1160,10 +1160,32 @@ async function stopCampaign(id){await fetch(`/api/campaigns/${id}/stop`,{method:
 
 // ── CAMPAIGN HISTORY ──────────────────────────────
 async function loadCampaignHistory(){
-  try{const d=await(await fetch('/api/campaign-history')).json();
-    campaignHistoryData=Array.isArray(d)?d:[];}catch(e){campaignHistoryData=[];}
-  updateHistorySummary();renderHistory();
+  document.getElementById('history-list-container').innerHTML=
+    `<div class="ch-empty"><div class="spinner-border spinner-border-sm text-secondary mb-2" role="status"></div><br>Loading...</div>`;
+  try{
+    const resp=await fetch('/api/campaign-history');
+    if(!resp.ok) throw new Error(`Server error: ${resp.status}`);
+    const d=await resp.json();
+    if(d&&d.error) throw new Error(d.error);
+    campaignHistoryData=Array.isArray(d)?d:[];
+  }catch(e){
+    campaignHistoryData=[];
+    document.getElementById('history-list-container').innerHTML=
+      `<div class="ch-empty" style="color:#ff6b6b;">
+        <i class="bi bi-exclamation-triangle" style="font-size:28px;display:block;margin-bottom:8px;"></i>
+        History load nahi hui: ${e.message}<br>
+        <span style="font-size:11px;color:#555;margin-top:6px;display:block;">Campaign start karo dashboard se — phir yahan dikhegi</span>
+        <button class="btn btn-outline-secondary btn-sm mt-3" onclick="loadCampaignHistory()">
+          <i class="bi bi-arrow-clockwise"></i> Retry
+        </button>
+      </div>`;
+    updateHistorySummary();
+    return;
+  }
+  updateHistorySummary();
+  renderHistory();
 }
+
 function updateHistorySummary(){
   const d=campaignHistoryData;
   document.getElementById('hs-total').textContent=d.length;
