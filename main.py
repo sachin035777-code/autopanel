@@ -1,52 +1,59 @@
 """
 AutoPanel v2 - Production-Ready Automation Control Panel
-Security Edition — v3.0
-
-New Security Features:
-- Multi-user system (alag-alag admin accounts)
-- Role-based access control: Admin / Operator / Viewer
-- TOTP 2FA (Google Authenticator compatible)
-- IP Whitelist — sirf whitelisted IPs se login allowed
-
-Role Permissions:
-  admin    → sab kuch (users manage, IP whitelist, full control)
-  operator → campaigns, workers, CSV, scripts upload/run
-  viewer   → sirf read-only (stats, logs, workers dekhna)
-
-Dependencies (add to requirements.txt):
-  pyotp>=2.9.0
-  qrcode[pil]>=7.4.2
+Updated:
+- API Key system for scripts
+- /api/db/{key}/next    — next row (locked)
+- /api/db/{key}/image  — next image
+- /api/db/{key}/config — settings
+- /api/db/{key}/done   — status + ip + time update
+- CSV row manual edit
+- IP auto fetch from SUCCESS rows
 """
 
 import json, os, shutil, secrets, csv, hashlib, hmac, time
 import sqlite3, threading, io, base64
 import bcrypt
-import pyotp
-import qrcode
 from datetime import datetime, timedelta
 from typing import Optional, List
-from fastapi import FastAPI, UploadFile, File, Form, Response, Cookie, Header, Request
+from fastapi import FastAPI, UploadFile, File, Form, Response, Cookie, Header
 from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 import paho.mqtt.client as mqtt
 
-app = FastAPI(title="AutoPanel v2 Secure")
+app = FastAPI(title="AutoPanel v2")
 
 # ── FOLDERS ───────────────────────────────────────
 for d in ["scripts","configs","csv_data/used","csv_data/history",
           "uploads/images","uploads/ip_data","logs","static"]:
     os.makedirs(d, exist_ok=True)
 
-# ── ENV CONFIG ────────────────────────────────────
-ADMIN_USER   = os.environ.get("ADMIN_USER")
-ADMIN_PASS   = os.environ.get("ADMIN_PASS")
+# ── SECURITY CONFIG ───────────────────────────────
+ADMIN_USER = os.environ.get("ADMIN_USER")
+
+ADMIN_PASS = os.environ.get("ADMIN_PASS")
 
 if not ADMIN_USER or not ADMIN_PASS:
-    raise RuntimeError("ADMIN_USER and ADMIN_PASS environment variables are required")
+    raise RuntimeError(
+        "ADMIN_USER and ADMIN_PASS environment variables are required"
+    )
 
-WORKER_SECRET = os.environ.get("WORKER_SECRET", secrets.token_hex(32))
+WORKER_SECRET = os.environ.get(
+    "WORKER_SECRET",
+    secrets.token_hex(32)
+)
+
 SESSION_HOURS = 24
-APP_NAME      = os.environ.get("APP_NAME", "AutoPanel v2")
+
+def hash_password(password: str) -> bytes:
+    return bcrypt.hashpw(password[:72].encode("utf-8"), bcrypt.gensalt())
+
+def verify_password(password: str, hashed: bytes) -> bool:
+    try:
+        return bcrypt.checkpw(password[:72].encode("utf-8"), hashed)
+    except Exception:
+        return False
+
+_admin_hash = hash_password(ADMIN_PASS)
 
 # MQTT Config
 MQTT_BROKER  = os.environ.get("MQTT_BROKER", "broker.hivemq.com")
@@ -62,16 +69,6 @@ TOPIC_LOG    = f"{TOPIC_PREFIX}/log"
 
 print(f"[MQTT] Topic prefix: {TOPIC_PREFIX}")
 
-# ── PASSWORD UTILS ────────────────────────────────
-def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password[:72].encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-
-def verify_password(password: str, hashed: str) -> bool:
-    try:
-        return bcrypt.checkpw(password[:72].encode("utf-8"), hashed.encode("utf-8"))
-    except Exception:
-        return False
-
 # ── SQLITE DATABASE ───────────────────────────────
 DB_PATH = "autopanel.db"
 db_lock = threading.Lock()
@@ -84,61 +81,11 @@ def get_db():
 def init_db():
     with get_db() as conn:
         conn.executescript("""
-        -- ══════════════════════════════════════
-        -- SECURITY TABLES
-        -- ══════════════════════════════════════
-
-        CREATE TABLE IF NOT EXISTS users (
-            id        INTEGER PRIMARY KEY AUTOINCREMENT,
-            username  TEXT UNIQUE NOT NULL,
-            password  TEXT NOT NULL,
-            role      TEXT NOT NULL DEFAULT 'viewer',
-            -- role: admin | operator | viewer
-            totp_secret   TEXT DEFAULT NULL,
-            totp_enabled  INTEGER DEFAULT 0,
-            is_active     INTEGER DEFAULT 1,
-            last_login    TEXT DEFAULT NULL,
-            login_attempts INTEGER DEFAULT 0,
-            locked_until  TEXT DEFAULT NULL,
-            created_at    TEXT DEFAULT CURRENT_TIMESTAMP,
-            created_by    TEXT DEFAULT 'system'
-        );
-
         CREATE TABLE IF NOT EXISTS sessions (
-            token         TEXT PRIMARY KEY,
-            user_id       INTEGER NOT NULL,
-            expires_at    TEXT NOT NULL,
-            ip_address    TEXT DEFAULT '',
-            user_agent    TEXT DEFAULT '',
-            awaiting_2fa  INTEGER DEFAULT 0,
-            -- 1 = password OK, waiting for TOTP
-            created_at    TEXT DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id)
+            token TEXT PRIMARY KEY,
+            expires_at TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
-
-        CREATE TABLE IF NOT EXISTS ip_whitelist (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            ip_cidr    TEXT NOT NULL,
-            -- e.g. "192.168.1.0/24" ya "10.0.0.1/32"
-            label      TEXT DEFAULT '',
-            is_active  INTEGER DEFAULT 1,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            created_by TEXT DEFAULT ''
-        );
-
-        CREATE TABLE IF NOT EXISTS security_audit_log (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            time       TEXT DEFAULT CURRENT_TIMESTAMP,
-            event      TEXT NOT NULL,
-            username   TEXT DEFAULT '',
-            ip         TEXT DEFAULT '',
-            details    TEXT DEFAULT '',
-            success    INTEGER DEFAULT 1
-        );
-
-        -- ══════════════════════════════════════
-        -- ORIGINAL TABLES (unchanged)
-        -- ══════════════════════════════════════
 
         CREATE TABLE IF NOT EXISTS script_store (
             id INTEGER PRIMARY KEY DEFAULT 1,
@@ -211,6 +158,7 @@ def init_db():
             FOREIGN KEY (history_id) REFERENCES campaign_history(id)
         );
 
+        -- ── DB MANAGER TABLES ──────────────────────────
         CREATE TABLE IF NOT EXISTS db_configs (
             key TEXT PRIMARY KEY,
             script_name TEXT DEFAULT '',
@@ -223,6 +171,7 @@ def init_db():
             status TEXT DEFAULT 'active',
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
+fv
 
         CREATE TABLE IF NOT EXISTS app_state (
             key TEXT PRIMARY KEY,
@@ -234,290 +183,43 @@ def init_db():
         """)
         conn.commit()
 
-    # Bootstrap default admin user if no users exist
-    _bootstrap_admin()
-
 init_db()
 
-
-# ════════════════════════════════════════════════
-# SECURITY — USER & ROLE SYSTEM
-# ════════════════════════════════════════════════
-
-ROLE_HIERARCHY = {"admin": 3, "operator": 2, "viewer": 1}
-
-# What each role can do
-ROLE_PERMISSIONS = {
-    "admin": {
-        "manage_users", "manage_ip_whitelist",
-        "view_audit_log", "view_workers", "manage_workers",
-        "view_campaigns", "manage_campaigns",
-        "view_csv", "upload_csv",
-        "view_scripts", "upload_scripts",
-        "view_images", "manage_images",
-        "view_stats", "view_history", "manage_history",
-        "manage_db", "view_db",
-        "broadcast",
-    },
-    "operator": {
-        "view_workers", "manage_workers",
-        "view_campaigns", "manage_campaigns",
-        "view_csv", "upload_csv",
-        "view_scripts", "upload_scripts",
-        "view_images", "manage_images",
-        "view_stats", "view_history",
-        "manage_db", "view_db",
-        "broadcast",
-    },
-    "viewer": {
-        "view_workers",
-        "view_campaigns",
-        "view_csv",
-        "view_scripts",
-        "view_images",
-        "view_stats", "view_history",
-        "view_db",
-    },
-}
-
-def has_permission(role: str, permission: str) -> bool:
-    return permission in ROLE_PERMISSIONS.get(role, set())
-
-def _bootstrap_admin():
-    """Pehli baar — env se admin user create karo."""
-    with db_lock:
-        with get_db() as conn:
-            exists = conn.execute("SELECT id FROM users WHERE username=?", (ADMIN_USER,)).fetchone()
-            if not exists:
-                conn.execute("""
-                    INSERT INTO users (username, password, role, is_active, created_by)
-                    VALUES (?, ?, 'admin', 1, 'bootstrap')
-                """, (ADMIN_USER, hash_password(ADMIN_PASS)))
-                conn.commit()
-                print(f"[Security] Bootstrap admin user '{ADMIN_USER}' created.")
-
-def get_user_by_username(username: str):
-    with get_db() as conn:
-        row = conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
-        return dict(row) if row else None
-
-def get_user_by_id(user_id: int):
-    with get_db() as conn:
-        row = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
-        return dict(row) if row else None
-
-
-# ════════════════════════════════════════════════
-# SECURITY — IP WHITELIST
-# ════════════════════════════════════════════════
-
-import ipaddress
-
-def _get_whitelist_active() -> list:
-    """Return list of active IP/CIDR entries."""
-    with get_db() as conn:
-        rows = conn.execute(
-            "SELECT ip_cidr FROM ip_whitelist WHERE is_active=1"
-        ).fetchall()
-    return [r["ip_cidr"] for r in rows]
-
-def is_ip_allowed(client_ip: str) -> bool:
-    """
-    Agar whitelist empty hai → sabko allow karo (open mode).
-    Agar whitelist mein entries hain → sirf matching IPs allow karo.
-    """
-    entries = _get_whitelist_active()
-    if not entries:
-        return True   # Whitelist disabled / empty → allow all
-    try:
-        client = ipaddress.ip_address(client_ip)
-        for entry in entries:
-            try:
-                network = ipaddress.ip_network(entry, strict=False)
-                if client in network:
-                    return True
-            except ValueError:
-                continue
-    except ValueError:
-        pass
-    return False
-
-def get_client_ip(request: Request) -> str:
-    """X-Forwarded-For header bhi handle karo (reverse proxy ke peeche)."""
-    forwarded_for = request.headers.get("X-Forwarded-For", "")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
-    return request.client.host if request.client else "0.0.0.0"
-
-
-# ════════════════════════════════════════════════
-# SECURITY — AUDIT LOG
-# ════════════════════════════════════════════════
-
-def audit_log(event: str, username: str = "", ip: str = "",
-               details: str = "", success: bool = True):
-    try:
-        with db_lock:
-            with get_db() as conn:
-                conn.execute("""
-                    INSERT INTO security_audit_log (event, username, ip, details, success)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (event, username, ip, details, 1 if success else 0))
-                conn.commit()
-    except Exception as e:
-        print(f"[Audit] Error: {e}")
-
-
-# ════════════════════════════════════════════════
-# SECURITY — SESSION MANAGEMENT
-# ════════════════════════════════════════════════
-
-MAX_LOGIN_ATTEMPTS = 5
-LOCKOUT_MINUTES    = 15
-
-def create_session(user_id: int, ip: str = "", user_agent: str = "",
-                   awaiting_2fa: bool = False) -> str:
+# ── SESSION MANAGEMENT ────────────────────────────
+def create_session() -> str:
     token   = secrets.token_hex(32)
     expires = (datetime.now() + timedelta(hours=SESSION_HOURS)).isoformat()
     with db_lock:
         with get_db() as conn:
-            conn.execute("""
-                INSERT INTO sessions (token, user_id, expires_at, ip_address, user_agent, awaiting_2fa)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (token, user_id, expires, ip, user_agent, 1 if awaiting_2fa else 0))
+            conn.execute("INSERT INTO sessions (token, expires_at) VALUES (?, ?)", (token, expires))
             conn.commit()
     return token
 
-def get_session(token: str) -> Optional[dict]:
-    """Returns session dict or None. Also checks expiry."""
+def check_session(token: str) -> bool:
     if not token:
-        return None
+        return False
     with db_lock:
         with get_db() as conn:
-            row = conn.execute("SELECT * FROM sessions WHERE token=?", (token,)).fetchone()
+            row = conn.execute("SELECT expires_at FROM sessions WHERE token=?", (token,)).fetchone()
             if not row:
-                return None
+                return False
             if datetime.fromisoformat(row["expires_at"]) < datetime.now():
                 conn.execute("DELETE FROM sessions WHERE token=?", (token,))
                 conn.commit()
-                return None
-    return dict(row)
-
-def check_session(token: str) -> bool:
-    s = get_session(token)
-    if not s:
-        return False
-    return s["awaiting_2fa"] == 0  # Only fully authenticated sessions
-
-def get_session_user(token: str) -> Optional[dict]:
-    s = get_session(token)
-    if not s or s["awaiting_2fa"] == 1:
-        return None
-    return get_user_by_id(s["user_id"])
-
-def require_session(session: Optional[str]) -> Optional[dict]:
-    """Returns user dict if authenticated, else None."""
-    return get_session_user(session)
-
-def require_permission(session: Optional[str], permission: str) -> Optional[dict]:
-    """Returns user if has permission, else None."""
-    user = require_session(session)
-    if not user:
-        return None
-    if not user["is_active"]:
-        return None
-    if has_permission(user["role"], permission):
-        return user
-    return None
-
-def delete_session(token: str):
-    with db_lock:
-        with get_db() as conn:
-            conn.execute("DELETE FROM sessions WHERE token=?", (token,))
-            conn.commit()
+                return False
+    return True
 
 def cleanup_sessions():
     while True:
         time.sleep(3600)
         with db_lock:
             with get_db() as conn:
-                conn.execute("DELETE FROM sessions WHERE expires_at < ?",
-                             (datetime.now().isoformat(),))
+                conn.execute("DELETE FROM sessions WHERE expires_at < ?", (datetime.now().isoformat(),))
                 conn.commit()
 
 threading.Thread(target=cleanup_sessions, daemon=True).start()
 
-
-# ════════════════════════════════════════════════
-# SECURITY — TOTP 2FA
-# ════════════════════════════════════════════════
-
-def generate_totp_secret() -> str:
-    return pyotp.random_base32()
-
-def get_totp_uri(username: str, secret: str) -> str:
-    return pyotp.TOTP(secret).provisioning_uri(
-        name=username, issuer_name=APP_NAME
-    )
-
-def verify_totp(secret: str, code: str) -> bool:
-    try:
-        totp = pyotp.TOTP(secret)
-        return totp.verify(code, valid_window=1)  # ±30s tolerance
-    except Exception:
-        return False
-
-def generate_qr_base64(uri: str) -> str:
-    """QR code as base64 PNG."""
-    qr = qrcode.QRCode(box_size=6, border=2)
-    qr.add_data(uri)
-    qr.make(fit=True)
-    img    = qr.make_image(fill_color="black", back_color="white")
-    buffer = io.BytesIO()
-    img.save(buffer, format="PNG")
-    return base64.b64encode(buffer.getvalue()).decode()
-
-
-# ════════════════════════════════════════════════
-# SECURITY — ACCOUNT LOCKOUT
-# ════════════════════════════════════════════════
-
-def record_failed_login(username: str):
-    with db_lock:
-        with get_db() as conn:
-            conn.execute("""
-                UPDATE users SET login_attempts = login_attempts + 1,
-                locked_until = CASE
-                    WHEN login_attempts + 1 >= ? THEN ?
-                    ELSE locked_until END
-                WHERE username = ?
-            """, (MAX_LOGIN_ATTEMPTS,
-                  (datetime.now() + timedelta(minutes=LOCKOUT_MINUTES)).isoformat(),
-                  username))
-            conn.commit()
-
-def record_successful_login(username: str):
-    with db_lock:
-        with get_db() as conn:
-            conn.execute("""
-                UPDATE users SET login_attempts=0, locked_until=NULL,
-                last_login=? WHERE username=?
-            """, (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), username))
-            conn.commit()
-
-def is_account_locked(user: dict) -> bool:
-    if not user.get("locked_until"):
-        return False
-    try:
-        return datetime.fromisoformat(user["locked_until"]) > datetime.now()
-    except:
-        return False
-
-
-# ════════════════════════════════════════════════
-# WORKER HMAC AUTH
-# ════════════════════════════════════════════════
-
+# ── WORKER HMAC AUTH ──────────────────────────────
 def make_worker_token(worker_id: str) -> str:
     msg = f"{worker_id}:{int(time.time() // 300)}"
     return hmac.new(WORKER_SECRET.encode(), msg.encode(), hashlib.sha256).hexdigest()
@@ -529,7 +231,6 @@ def verify_worker_token(worker_id: str, token: str) -> bool:
         if hmac.compare_digest(expected, token):
             return True
     return False
-
 
 # ── MQTT ──────────────────────────────────────────
 workers        = {}
@@ -599,7 +300,6 @@ threading.Thread(target=mqtt_thread, daemon=True).start()
 def send_cmd(worker_id: str, command: str, extra: dict = {}):
     mqttc.publish(TOPIC_CMD, json.dumps({"worker_id": worker_id, "command": command, **extra}))
 
-
 # ── CSV MANAGEMENT ────────────────────────────────
 csv_rw_lock = threading.Lock()
 
@@ -652,7 +352,6 @@ def save_used_row(row: dict, worker_id: str, status: str):
         if not exists: w.writeheader()
         w.writerow(row_copy)
 
-
 # ── CAMPAIGN HISTORY ──────────────────────────────
 def _get_active_history_id() -> Optional[str]:
     try:
@@ -680,6 +379,7 @@ def _set_active_history_id(hid: Optional[str]):
         pass
 
 def _recover_active_history():
+    """Server restart ke baad orphaned 'running' history ko 'stopped' mark karo."""
     try:
         with get_db() as conn:
             row = conn.execute(
@@ -691,16 +391,23 @@ def _recover_active_history():
                     "SELECT id FROM campaign_history WHERE id=? AND status='running'", (hid,)
                 ).fetchone()
                 if hist:
-                    print(f"[History] Orphaned history {hid} — marking stopped")
+                    print(f"[History] Orphaned history {hid} — marking stopped (server restarted)")
                     conn.execute(
                         "UPDATE campaign_history SET status='stopped', stop_time=? WHERE id=?",
                         (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), hid)
+                    )
+                    conn.execute(
+                        "INSERT INTO campaign_history_logs "
+                        "(history_id, time, level, worker_id, msg) VALUES (?,?,?,?,?)",
+                        (hid, datetime.now().strftime("%H:%M:%S"),
+                         "WARN", "SERVER", "Campaign stopped — server restarted")
                     )
                 conn.execute("DELETE FROM app_state WHERE key='active_history_id'")
                 conn.commit()
     except Exception as e:
         print(f"[History] Recover error: {e}")
 
+# Startup pe orphaned histories recover karo
 _recover_active_history()
 
 def create_campaign_history(campaign_id, name, script, csv_file, url):
@@ -767,6 +474,10 @@ def _register_worker_in_active_history(worker_id):
                     INSERT INTO campaign_history_workers (history_id, worker_id, joined_at)
                     VALUES (?, ?, ?)
                 """, (hid, worker_id, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                conn.execute("""
+                    INSERT INTO campaign_history_logs (history_id, time, level, worker_id, msg)
+                    VALUES (?, ?, 'INFO', ?, ?)
+                """, (hid, datetime.now().strftime("%H:%M:%S"), worker_id, f"Worker '{worker_id}' joined"))
                 conn.commit()
 
 def _append_log_to_active_history(worker_id, level, msg, log_time=""):
@@ -793,548 +504,8 @@ def update_worker_stats_in_history(worker_id, rows_done=0, rows_failed=0):
             """, (rows_done, rows_failed, hid, worker_id))
             conn.commit()
 
-
 # ════════════════════════════════════════════════
-# AUTH PAGES — LOGIN, 2FA
-# ════════════════════════════════════════════════
-
-def login_html(err="", show_2fa=False, temp_token=""):
-    two_fa_block = f"""
-    <div id="totp-section">
-      <label>Authenticator Code</label>
-      <input name="totp_code" type="text" inputmode="numeric" pattern="[0-9]{{6}}"
-             maxlength="6" placeholder="6-digit code" autofocus autocomplete="one-time-code">
-      <input type="hidden" name="temp_token" value="{temp_token}">
-    </div>
-    """ if show_2fa else ""
-
-    submit_label = "Verify Code" if show_2fa else "Login"
-    action       = "/login/2fa" if show_2fa else "/login"
-
-    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>{APP_NAME}</title><meta name="viewport" content="width=device-width,initial-scale=1">
-<style>
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;700&display=swap');
-*{{box-sizing:border-box;margin:0;padding:0;}}
-body{{
-  background:#080b10;
-  display:flex;align-items:center;justify-content:center;
-  min-height:100vh;
-  font-family:'Syne',sans-serif;
-  background-image: radial-gradient(ellipse at 20% 50%, #0d1a2e 0%, transparent 60%),
-                    radial-gradient(ellipse at 80% 20%, #0a1f1a 0%, transparent 60%);
-}}
-.box{{
-  background:rgba(14,18,28,0.95);
-  border:1px solid rgba(99,210,179,0.15);
-  border-radius:12px;
-  padding:44px 40px;
-  width:100%;max-width:400px;
-  box-shadow:0 24px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04);
-}}
-.logo{{
-  display:flex;align-items:center;gap:10px;margin-bottom:32px;
-}}
-.logo-icon{{
-  width:36px;height:36px;
-  background:linear-gradient(135deg,#63d2b3,#4a90e2);
-  border-radius:8px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:16px;font-weight:700;color:#fff;font-family:'JetBrains Mono',monospace;
-}}
-.logo-text{{color:#e8eaf0;font-size:1.15rem;font-weight:700;letter-spacing:-0.02em;}}
-.logo-badge{{
-  margin-left:auto;
-  background:rgba(99,210,179,0.1);
-  border:1px solid rgba(99,210,179,0.2);
-  color:#63d2b3;font-size:10px;font-weight:600;
-  padding:3px 8px;border-radius:20px;font-family:'JetBrains Mono',monospace;
-  letter-spacing:0.05em;
-}}
-label{{color:#8b91a8;font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;display:block;margin-bottom:7px;}}
-input[type=text],input[type=password]{{
-  width:100%;
-  background:rgba(255,255,255,0.04);
-  border:1px solid rgba(255,255,255,0.08);
-  color:#e8eaf0;border-radius:8px;
-  padding:11px 14px;font-size:14px;margin-bottom:18px;
-  outline:none;font-family:'JetBrains Mono',monospace;
-  transition:border-color 0.2s;
-}}
-input:focus{{border-color:rgba(99,210,179,0.4);background:rgba(99,210,179,0.04);}}
-button{{
-  width:100%;
-  background:linear-gradient(135deg,#63d2b3,#4a90e2);
-  color:#fff;border:none;border-radius:8px;
-  padding:12px;font-size:14px;cursor:pointer;
-  font-weight:700;font-family:'Syne',sans-serif;
-  letter-spacing:0.03em;
-  transition:opacity 0.2s,transform 0.1s;
-}}
-button:hover{{opacity:0.9;transform:translateY(-1px);}}
-button:active{{transform:translateY(0);}}
-.err{{
-  color:#ff6b6b;font-size:13px;
-  background:rgba(255,107,107,0.08);
-  border:1px solid rgba(255,107,107,0.2);
-  border-radius:6px;padding:10px 14px;margin-top:14px;
-  font-family:'JetBrains Mono',monospace;
-}}
-.divider{{height:1px;background:rgba(255,255,255,0.06);margin:20px 0;}}
-.hint{{color:#4a5068;font-size:11px;text-align:center;margin-top:16px;font-family:'JetBrains Mono',monospace;}}
-</style></head><body>
-<div class="box">
-  <div class="logo">
-    <div class="logo-icon">AP</div>
-    <div class="logo-text">{APP_NAME}</div>
-    <span class="logo-badge">SECURE</span>
-  </div>
-  <form method="POST" action="{action}">
-    {'<label>Username</label><input name="username" type="text" autofocus autocomplete="username">' if not show_2fa else ''}
-    {'<label>Password</label><input name="password" type="password" autocomplete="current-password">' if not show_2fa else ''}
-    {two_fa_block}
-    <div class="divider"></div>
-    <button type="submit">{submit_label}</button>
-  </form>
-  {"<div class='err'>" + err + "</div>" if err else ""}
-  <p class="hint">🔒 Secured session · {SESSION_HOURS}h expiry</p>
-</div></body></html>"""
-
-
-@app.get("/login")
-def login_page():
-    return HTMLResponse(login_html())
-
-
-@app.post("/login")
-async def do_login(
-    request: Request,
-    response: Response,
-    username: str = Form(...),
-    password: str = Form(...)
-):
-    client_ip  = get_client_ip(request)
-    user_agent = request.headers.get("User-Agent", "")
-
-    # ── IP Whitelist Check ─────────────────────────
-    if not is_ip_allowed(client_ip):
-        audit_log("login_blocked_ip", username, client_ip, "IP not in whitelist", success=False)
-        return HTMLResponse(login_html(err="Access denied from this IP address."), status_code=403)
-
-    user = get_user_by_username(username)
-
-    if not user or not verify_password(password, user["password"]):
-        if user:
-            record_failed_login(username)
-        audit_log("login_failed", username, client_ip, "Wrong credentials", success=False)
-        return HTMLResponse(login_html(err="Invalid username or password."))
-
-    if not user["is_active"]:
-        audit_log("login_blocked", username, client_ip, "Account disabled", success=False)
-        return HTMLResponse(login_html(err="Account is disabled. Contact admin."))
-
-    if is_account_locked(user):
-        audit_log("login_blocked", username, client_ip, "Account locked", success=False)
-        return HTMLResponse(login_html(
-            err=f"Account locked after too many attempts. Try again in {LOCKOUT_MINUTES} minutes."
-        ))
-
-    # ── 2FA Check ─────────────────────────────────
-    if user["totp_enabled"] and user["totp_secret"]:
-        # Create a temporary "awaiting_2fa" session
-        temp_token = create_session(user["id"], client_ip, user_agent, awaiting_2fa=True)
-        audit_log("login_2fa_required", username, client_ip, "Password OK, awaiting 2FA")
-        return HTMLResponse(login_html(show_2fa=True, temp_token=temp_token))
-
-    # ── Full Login ─────────────────────────────────
-    record_successful_login(username)
-    token = create_session(user["id"], client_ip, user_agent, awaiting_2fa=False)
-    audit_log("login_success", username, client_ip, f"Role: {user['role']}")
-
-    resp = RedirectResponse(url="/", status_code=302)
-    resp.set_cookie("session", token, httponly=True, secure=False,
-                    samesite="lax", max_age=SESSION_HOURS * 3600)
-    return resp
-
-
-@app.post("/login/2fa")
-async def do_2fa(
-    request: Request,
-    temp_token: str = Form(...),
-    totp_code: str = Form(...)
-):
-    client_ip = get_client_ip(request)
-    user_agent = request.headers.get("User-Agent", "")
-
-    session = get_session(temp_token)
-    if not session or session["awaiting_2fa"] != 1:
-        return HTMLResponse(login_html(err="Session expired. Please login again."))
-
-    user = get_user_by_id(session["user_id"])
-    if not user:
-        return HTMLResponse(login_html(err="User not found."))
-
-    if not verify_totp(user["totp_secret"], totp_code.strip()):
-        audit_log("2fa_failed", user["username"], client_ip, "Wrong TOTP code", success=False)
-        return HTMLResponse(login_html(
-            show_2fa=True, temp_token=temp_token,
-            err="Invalid authenticator code. Try again."
-        ))
-
-    # 2FA passed — upgrade session to fully authenticated
-    delete_session(temp_token)
-    record_successful_login(user["username"])
-    token = create_session(user["id"], client_ip, user_agent, awaiting_2fa=False)
-    audit_log("login_success_2fa", user["username"], client_ip, "2FA verified")
-
-    resp = RedirectResponse(url="/", status_code=302)
-    resp.set_cookie("session", token, httponly=True, secure=False,
-                    samesite="lax", max_age=SESSION_HOURS * 3600)
-    return resp
-
-
-@app.get("/logout")
-def logout(session: Optional[str] = Cookie(None)):
-    if session:
-        delete_session(session)
-    resp = RedirectResponse(url="/login", status_code=302)
-    resp.delete_cookie("session")
-    return resp
-
-
-@app.get("/")
-def dashboard(session: Optional[str] = Cookie(None)):
-    if not check_session(session):
-        return RedirectResponse(url="/login", status_code=302)
-    if os.path.exists("static/index.html"):
-        return HTMLResponse(open("static/index.html", encoding="utf-8").read())
-    return HTMLResponse("<h1>Place index.html in static/</h1>")
-
-
-# ════════════════════════════════════════════════
-# API — CURRENT USER INFO
-# ════════════════════════════════════════════════
-
-@app.get("/api/me")
-def get_me(session: Optional[str] = Cookie(None)):
-    user = require_session(session)
-    if not user:
-        return JSONResponse({"error": "unauthorized"}, status_code=401)
-    return {
-        "id":           user["id"],
-        "username":     user["username"],
-        "role":         user["role"],
-        "totp_enabled": bool(user["totp_enabled"]),
-        "last_login":   user["last_login"],
-        "permissions":  list(ROLE_PERMISSIONS.get(user["role"], set()))
-    }
-
-
-# ════════════════════════════════════════════════
-# API — USER MANAGEMENT (Admin only)
-# ════════════════════════════════════════════════
-
-@app.get("/api/users")
-def list_users(session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "manage_users")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
-    with get_db() as conn:
-        rows = conn.execute(
-            "SELECT id, username, role, is_active, totp_enabled, last_login, "
-            "login_attempts, locked_until, created_at, created_by FROM users ORDER BY id"
-        ).fetchall()
-    return [dict(r) for r in rows]
-
-
-@app.post("/api/users")
-def create_user(data: dict, session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "manage_users")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
-
-    username = data.get("username", "").strip()
-    password = data.get("password", "")
-    role     = data.get("role", "viewer")
-
-    if not username or not password:
-        return JSONResponse({"error": "username and password required"}, status_code=400)
-    if role not in ROLE_HIERARCHY:
-        return JSONResponse({"error": f"Invalid role. Valid: {list(ROLE_HIERARCHY.keys())}"}, status_code=400)
-
-    # Admins cannot create users with higher role than themselves
-    if ROLE_HIERARCHY.get(role, 0) > ROLE_HIERARCHY.get(user["role"], 0):
-        return JSONResponse({"error": "Cannot create user with higher role than yours"}, status_code=403)
-
-    try:
-        with db_lock:
-            with get_db() as conn:
-                conn.execute("""
-                    INSERT INTO users (username, password, role, is_active, created_by)
-                    VALUES (?, ?, ?, 1, ?)
-                """, (username, hash_password(password), role, user["username"]))
-                conn.commit()
-        audit_log("user_created", user["username"], "", f"Created user '{username}' with role '{role}'")
-        return {"ok": True, "message": f"User '{username}' created with role '{role}'"}
-    except sqlite3.IntegrityError:
-        return JSONResponse({"error": f"Username '{username}' already exists"}, status_code=409)
-
-
-@app.put("/api/users/{user_id}")
-def update_user(user_id: int, data: dict, session: Optional[str] = Cookie(None)):
-    caller = require_permission(session, "manage_users")
-    if not caller:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
-
-    target = get_user_by_id(user_id)
-    if not target:
-        return JSONResponse({"error": "User not found"}, status_code=404)
-
-    # Prevent self-demotion or deactivation
-    if target["id"] == caller["id"] and "role" in data:
-        if ROLE_HIERARCHY.get(data["role"], 0) < ROLE_HIERARCHY.get(caller["role"], 0):
-            return JSONResponse({"error": "Cannot demote yourself"}, status_code=403)
-
-    updates  = []
-    params   = []
-
-    if "role" in data:
-        new_role = data["role"]
-        if new_role not in ROLE_HIERARCHY:
-            return JSONResponse({"error": "Invalid role"}, status_code=400)
-        if ROLE_HIERARCHY.get(new_role, 0) > ROLE_HIERARCHY.get(caller["role"], 0):
-            return JSONResponse({"error": "Cannot assign role higher than yours"}, status_code=403)
-        updates.append("role=?"); params.append(new_role)
-
-    if "password" in data and data["password"]:
-        updates.append("password=?"); params.append(hash_password(data["password"]))
-
-    if "is_active" in data:
-        updates.append("is_active=?"); params.append(1 if data["is_active"] else 0)
-
-    if "unlock" in data and data["unlock"]:
-        updates.append("login_attempts=0")
-        updates.append("locked_until=NULL")
-
-    if not updates:
-        return JSONResponse({"error": "Nothing to update"}, status_code=400)
-
-    params.append(user_id)
-    with db_lock:
-        with get_db() as conn:
-            conn.execute(f"UPDATE users SET {', '.join(updates)} WHERE id=?", params)
-            conn.commit()
-
-    audit_log("user_updated", caller["username"], "", f"Updated user id={user_id}: {list(data.keys())}")
-    return {"ok": True}
-
-
-@app.delete("/api/users/{user_id}")
-def delete_user(user_id: int, session: Optional[str] = Cookie(None)):
-    caller = require_permission(session, "manage_users")
-    if not caller:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
-
-    if caller["id"] == user_id:
-        return JSONResponse({"error": "Cannot delete your own account"}, status_code=403)
-
-    target = get_user_by_id(user_id)
-    if not target:
-        return JSONResponse({"error": "User not found"}, status_code=404)
-
-    if ROLE_HIERARCHY.get(target["role"], 0) >= ROLE_HIERARCHY.get(caller["role"], 0):
-        return JSONResponse({"error": "Cannot delete user with equal or higher role"}, status_code=403)
-
-    with db_lock:
-        with get_db() as conn:
-            conn.execute("DELETE FROM users WHERE id=?", (user_id,))
-            conn.execute("DELETE FROM sessions WHERE user_id=?", (user_id,))
-            conn.commit()
-
-    audit_log("user_deleted", caller["username"], "", f"Deleted user '{target['username']}'")
-    return {"ok": True}
-
-
-# ════════════════════════════════════════════════
-# API — 2FA MANAGEMENT (Self-service)
-# ════════════════════════════════════════════════
-
-@app.post("/api/2fa/setup")
-def setup_2fa(session: Optional[str] = Cookie(None)):
-    """Generate a new TOTP secret and QR code."""
-    user = require_session(session)
-    if not user:
-        return JSONResponse({"error": "unauthorized"}, status_code=401)
-
-    secret = generate_totp_secret()
-    uri    = get_totp_uri(user["username"], secret)
-    qr_b64 = generate_qr_base64(uri)
-
-    # Store secret temporarily (not enabled yet — confirmed after verify)
-    with db_lock:
-        with get_db() as conn:
-            conn.execute("UPDATE users SET totp_secret=? WHERE id=?", (secret, user["id"]))
-            conn.commit()
-
-    return {
-        "secret": secret,
-        "uri":    uri,
-        "qr_png": qr_b64,  # base64 PNG for frontend
-        "message": "Scan QR in Authenticator app, then call /api/2fa/verify to enable."
-    }
-
-
-@app.post("/api/2fa/verify")
-def verify_and_enable_2fa(data: dict, session: Optional[str] = Cookie(None)):
-    """Confirm TOTP code and enable 2FA."""
-    user = require_session(session)
-    if not user:
-        return JSONResponse({"error": "unauthorized"}, status_code=401)
-
-    code = data.get("code", "").strip()
-    if not user["totp_secret"]:
-        return JSONResponse({"error": "Run /api/2fa/setup first"}, status_code=400)
-
-    if not verify_totp(user["totp_secret"], code):
-        return JSONResponse({"error": "Invalid code. Try again."}, status_code=400)
-
-    with db_lock:
-        with get_db() as conn:
-            conn.execute("UPDATE users SET totp_enabled=1 WHERE id=?", (user["id"],))
-            conn.commit()
-
-    audit_log("2fa_enabled", user["username"], "", "2FA successfully enabled")
-    return {"ok": True, "message": "2FA enabled successfully! Required on next login."}
-
-
-@app.post("/api/2fa/disable")
-def disable_2fa(data: dict, session: Optional[str] = Cookie(None)):
-    """Disable 2FA (requires current password confirmation)."""
-    user = require_session(session)
-    if not user:
-        return JSONResponse({"error": "unauthorized"}, status_code=401)
-
-    password = data.get("password", "")
-    if not verify_password(password, user["password"]):
-        return JSONResponse({"error": "Wrong password"}, status_code=403)
-
-    with db_lock:
-        with get_db() as conn:
-            conn.execute(
-                "UPDATE users SET totp_enabled=0, totp_secret=NULL WHERE id=?",
-                (user["id"],)
-            )
-            conn.commit()
-
-    audit_log("2fa_disabled", user["username"], "", "2FA disabled")
-    return {"ok": True, "message": "2FA disabled."}
-
-
-# ════════════════════════════════════════════════
-# API — IP WHITELIST (Admin only)
-# ════════════════════════════════════════════════
-
-@app.get("/api/ip-whitelist")
-def get_ip_whitelist(session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "manage_ip_whitelist")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
-    with get_db() as conn:
-        rows = conn.execute(
-            "SELECT id, ip_cidr, label, is_active, created_at, created_by FROM ip_whitelist ORDER BY id"
-        ).fetchall()
-    return [dict(r) for r in rows]
-
-
-@app.post("/api/ip-whitelist")
-def add_ip_whitelist(data: dict, session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "manage_ip_whitelist")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
-
-    ip_cidr = data.get("ip_cidr", "").strip()
-    label   = data.get("label", "").strip()
-
-    if not ip_cidr:
-        return JSONResponse({"error": "ip_cidr required"}, status_code=400)
-
-    # Validate IP/CIDR
-    try:
-        ipaddress.ip_network(ip_cidr, strict=False)
-    except ValueError:
-        return JSONResponse({"error": f"Invalid IP/CIDR: {ip_cidr}"}, status_code=400)
-
-    with db_lock:
-        with get_db() as conn:
-            conn.execute(
-                "INSERT INTO ip_whitelist (ip_cidr, label, is_active, created_by) VALUES (?, ?, 1, ?)",
-                (ip_cidr, label, user["username"])
-            )
-            conn.commit()
-
-    audit_log("ip_whitelist_add", user["username"], "", f"Added: {ip_cidr} ({label})")
-    return {"ok": True, "message": f"IP '{ip_cidr}' added to whitelist."}
-
-
-@app.delete("/api/ip-whitelist/{entry_id}")
-def remove_ip_whitelist(entry_id: int, session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "manage_ip_whitelist")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
-
-    with db_lock:
-        with get_db() as conn:
-            row = conn.execute("SELECT ip_cidr FROM ip_whitelist WHERE id=?", (entry_id,)).fetchone()
-            if not row:
-                return JSONResponse({"error": "Entry not found"}, status_code=404)
-            conn.execute("DELETE FROM ip_whitelist WHERE id=?", (entry_id,))
-            conn.commit()
-
-    audit_log("ip_whitelist_remove", user["username"], "", f"Removed: {row['ip_cidr']}")
-    return {"ok": True}
-
-
-@app.put("/api/ip-whitelist/{entry_id}")
-def toggle_ip_whitelist(entry_id: int, data: dict, session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "manage_ip_whitelist")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
-
-    is_active = 1 if data.get("is_active", True) else 0
-    with db_lock:
-        with get_db() as conn:
-            conn.execute("UPDATE ip_whitelist SET is_active=? WHERE id=?", (is_active, entry_id))
-            conn.commit()
-    return {"ok": True}
-
-
-# ════════════════════════════════════════════════
-# API — AUDIT LOG (Admin only)
-# ════════════════════════════════════════════════
-
-@app.get("/api/audit-log")
-def get_audit_log(
-    session: Optional[str] = Cookie(None),
-    limit: int = 200,
-    username: str = ""
-):
-    user = require_permission(session, "view_audit_log")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
-
-    query  = "SELECT * FROM security_audit_log"
-    params = []
-    if username:
-        query += " WHERE username=?"; params.append(username)
-    query += f" ORDER BY id DESC LIMIT {min(int(limit), 1000)}"
-
-    with get_db() as conn:
-        rows = conn.execute(query, params).fetchall()
-    return [dict(r) for r in rows]
-
-
-# ════════════════════════════════════════════════
-# DB MANAGER — API KEY SYSTEM (unchanged, with permission checks added)
+# DB MANAGER — API KEY SYSTEM
 # ════════════════════════════════════════════════
 
 db_row_lock = threading.Lock()
@@ -1347,11 +518,11 @@ def generate_db_key(
     csv_file: UploadFile = File(None),
     config: str = Form("{}"),
 ):
-    user = require_permission(session, "manage_db")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
 
     key = secrets.token_hex(6)
+
     csv_data  = []
     csv_fname = ""
 
@@ -1361,6 +532,7 @@ def generate_db_key(
         text      = content.decode("utf-8-sig", "replace")
         reader    = csv.DictReader(io.StringIO(text))
         csv_data  = [dict(row) for row in reader]
+        # save to history too
         hist_path = f"csv_data/history/{datetime.now().strftime('%Y%m%d_%H%M%S')}_{csv_fname}"
         with open(hist_path, "wb") as f:
             f.write(content)
@@ -1370,6 +542,7 @@ def generate_db_key(
     except:
         cfg = {}
 
+    # detect fields from first row
     fields = list(csv_data[0].keys()) if csv_data else []
     cfg["fields"] = fields
 
@@ -1381,8 +554,14 @@ def generate_db_key(
             """, (key, script_name, csv_fname, json.dumps(csv_data), len(csv_data), json.dumps(cfg), datetime.now().isoformat()))
             conn.commit()
 
-    return {"key": key, "script": script_name, "csv": csv_fname,
-            "total_rows": len(csv_data), "fields": fields, "config": cfg}
+    return {
+        "key": key,
+        "script": script_name,
+        "csv": csv_fname,
+        "total_rows": len(csv_data),
+        "fields": fields,
+        "config": cfg
+    }
 
 
 @app.get("/api/db/{key}/config")
@@ -1393,10 +572,15 @@ def db_get_config(key: str):
         return JSONResponse({"error": "Invalid key"}, status_code=404)
     cfg = json.loads(row["config"])
     return {
-        "script": row["script_name"], "form_url": cfg.get("form_url", ""),
-        "headless": cfg.get("headless", False), "airplane_on": cfg.get("airplane_on", 6),
-        "airplane_off": cfg.get("airplane_off", 10), "max_ip_attempts": cfg.get("max_ip_attempts", 5),
-        "delay": cfg.get("delay", 2), "extra": cfg.get("extra", {}), "fields": cfg.get("fields", [])
+        "script":          row["script_name"],
+        "form_url":        cfg.get("form_url", ""),
+        "headless":        cfg.get("headless", False),
+        "airplane_on":     cfg.get("airplane_on", 6),
+        "airplane_off":    cfg.get("airplane_off", 10),
+        "max_ip_attempts": cfg.get("max_ip_attempts", 5),
+        "delay":           cfg.get("delay", 2),
+        "extra":           cfg.get("extra", {}),
+        "fields":          cfg.get("fields", [])
     }
 
 
@@ -1425,8 +609,9 @@ def db_next_row(key: str, worker_id: str = "unknown"):
             data[ptr]["_assigned_to"] = worker_id
             data[ptr]["_assigned_at"] = datetime.now().strftime("%H:%M:%S")
 
-            conn.execute("UPDATE db_configs SET csv_data=?, row_pointer=? WHERE key=?",
-                         (json.dumps(data), ptr + 1, key))
+            conn.execute("""
+                UPDATE db_configs SET csv_data=?, row_pointer=? WHERE key=?
+            """, (json.dumps(data), ptr + 1, key))
             conn.commit()
 
         return {"row": data[ptr], "row_index": ptr}
@@ -1447,7 +632,7 @@ def db_next_image(key: str, worker_id: str = "unknown"):
             row = conn.execute("SELECT image_pointer FROM db_configs WHERE key=?", (key,)).fetchone()
             if not row:
                 return JSONResponse({"error": "Invalid key"}, status_code=404)
-            ptr   = row["image_pointer"] % len(images)
+            ptr = row["image_pointer"] % len(images)
             fname = images[ptr]
             conn.execute("UPDATE db_configs SET image_pointer=? WHERE key=?", (ptr + 1, key))
             conn.commit()
@@ -1456,11 +641,17 @@ def db_next_image(key: str, worker_id: str = "unknown"):
         with open(img_path, "rb") as f:
             b64 = base64.b64encode(f.read()).decode()
 
-        ext  = fname.rsplit(".", 1)[-1].lower()
+        ext = fname.rsplit(".", 1)[-1].lower()
         mime = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
                 "webp": "image/webp", "gif": "image/gif"}.get(ext, "image/jpeg")
 
-        return {"image": b64, "filename": fname, "mime": mime, "index": ptr, "total": len(images)}
+        return {
+            "image":    b64,
+            "filename": fname,
+            "mime":     mime,
+            "index":    ptr,
+            "total":    len(images)
+        }
 
 
 @app.post("/api/db/{key}/done")
@@ -1477,52 +668,65 @@ def db_mark_done(key: str, data: dict):
             cfg_row = conn.execute("SELECT csv_data FROM db_configs WHERE key=?", (key,)).fetchone()
             if not cfg_row:
                 return JSONResponse({"error": "Invalid key"}, status_code=404)
+
             rows = json.loads(cfg_row["csv_data"])
             if row_index is not None and row_index < len(rows):
-                rows[row_index].update({"status": status, "_worker": worker_id,
-                                        "_ip": ip, "_time": done_time, "_note": note})
+                rows[row_index]["status"]    = status
+                rows[row_index]["_worker"]   = worker_id
+                rows[row_index]["_ip"]       = ip
+                rows[row_index]["_time"]     = done_time
+                rows[row_index]["_note"]     = note
+
                 conn.execute("UPDATE db_configs SET csv_data=? WHERE key=?",
                              (json.dumps(rows), key))
                 conn.commit()
 
+    # Save to IP records if SUCCESS
     if status == "SUCCESS" and ip:
         ip_path = f"uploads/ip_data/auto_ip_{datetime.now().strftime('%Y%m%d')}.csv"
         exists  = os.path.exists(ip_path)
         with open(ip_path, "a", newline="", encoding="utf-8-sig") as f:
-            w = csv.DictWriter(f, fieldnames=["ip","worker_id","key","row_index","time"])
+            w = csv.DictWriter(f, fieldnames=["ip", "worker_id", "key", "row_index", "time"])
             if not exists: w.writeheader()
             w.writerow({"ip": ip, "worker_id": worker_id, "key": key,
                         "row_index": row_index, "time": done_time})
+
     return {"ok": True}
 
 
 @app.get("/api/db/list")
 def db_list_configs(session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "view_db")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     with get_db() as conn:
         rows = conn.execute("SELECT * FROM db_configs ORDER BY created_at DESC").fetchall()
+
     result = []
     for r in rows:
         data    = json.loads(r["csv_data"])
         cfg     = json.loads(r["config"])
-        success = sum(1 for x in data if x.get("status","").upper() == "SUCCESS")
-        failed  = sum(1 for x in data if x.get("status","").upper() == "FAILED")
-        pending = sum(1 for x in data if x.get("status","").upper() not in ("SUCCESS","FAILED","USED"))
+        success = sum(1 for x in data if x.get("status", "").upper() == "SUCCESS")
+        failed  = sum(1 for x in data if x.get("status", "").upper() == "FAILED")
+        pending = sum(1 for x in data if x.get("status", "").upper() not in ("SUCCESS", "FAILED", "USED"))
         result.append({
-            "key": r["key"], "script": r["script_name"], "csv": r["csv_filename"],
-            "total": r["total_rows"], "success": success, "failed": failed, "pending": pending,
-            "fields": cfg.get("fields", []), "status": r["status"], "created_at": r["created_at"]
+            "key":         r["key"],
+            "script":      r["script_name"],
+            "csv":         r["csv_filename"],
+            "total":       r["total_rows"],
+            "success":     success,
+            "failed":      failed,
+            "pending":     pending,
+            "fields":      cfg.get("fields", []),
+            "status":      r["status"],
+            "created_at":  r["created_at"]
         })
     return result
 
 
 @app.get("/api/db/{key}/rows")
 def db_get_rows(key: str, session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "view_db")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     with get_db() as conn:
         row = conn.execute("SELECT csv_data, config FROM db_configs WHERE key=?", (key,)).fetchone()
     if not row:
@@ -1535,9 +739,8 @@ def db_get_rows(key: str, session: Optional[str] = Cookie(None)):
 
 @app.put("/api/db/{key}/row/{row_index}")
 def db_edit_row(key: str, row_index: int, data: dict, session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "manage_db")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     with db_row_lock:
         with get_db() as conn:
             cfg_row = conn.execute("SELECT csv_data FROM db_configs WHERE key=?", (key,)).fetchone()
@@ -1554,9 +757,8 @@ def db_edit_row(key: str, row_index: int, data: dict, session: Optional[str] = C
 
 @app.get("/api/db/{key}/download-csv")
 def db_download_csv(key: str, session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "view_db")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     with get_db() as conn:
         row = conn.execute("SELECT csv_data, csv_filename FROM db_configs WHERE key=?", (key,)).fetchone()
     if not row:
@@ -1569,15 +771,17 @@ def db_download_csv(key: str, session: Optional[str] = Cookie(None)):
     writer.writeheader()
     writer.writerows(data)
     from fastapi.responses import Response as FR
-    return FR(content=output.getvalue().encode("utf-8-sig"), media_type="text/csv",
-              headers={"Content-Disposition": f"attachment; filename={row['csv_filename'] or 'data.csv'}"})
+    return FR(
+        content=output.getvalue().encode("utf-8-sig"),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={row['csv_filename'] or 'data.csv'}"}
+    )
 
 
 @app.delete("/api/db/{key}")
 def db_delete_config(key: str, session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "manage_db")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     with db_lock:
         with get_db() as conn:
             conn.execute("DELETE FROM db_configs WHERE key=?", (key,))
@@ -1587,9 +791,8 @@ def db_delete_config(key: str, session: Optional[str] = Cookie(None)):
 
 @app.put("/api/db/{key}/status")
 def db_update_status(key: str, data: dict, session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "manage_db")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     status = data.get("status", "active")
     with db_lock:
         with get_db() as conn:
@@ -1601,39 +804,42 @@ def db_update_status(key: str, data: dict, session: Optional[str] = Cookie(None)
 # ── IP AUTO-FETCH FROM SUCCESS ROWS ───────────────
 @app.get("/api/ip-from-csv")
 def ip_from_csv(session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "view_db")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    """Fetch IPs from SUCCESS rows in main CSV + all db_configs"""
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
 
-    ips   = []
+    ips = []
+
+    # Main CSV
     state = get_csv_state()
     for i, row in enumerate(state.get("data", [])):
         if row.get("status", "").upper() == "SUCCESS":
             ip = row.get("ip") or row.get("_ip") or row.get("ip_address", "")
             if ip:
                 ips.append({"ip": ip, "source": "main_csv", "row": i,
-                            "time": row.get("_time",""), "worker": row.get("_worker","")})
+                            "time": row.get("_time", ""), "worker": row.get("_worker", "")})
 
+    # DB configs
     with get_db() as conn:
         cfgs = conn.execute("SELECT key, script_name, csv_data FROM db_configs").fetchall()
     for cfg in cfgs:
         rows = json.loads(cfg["csv_data"])
         for i, row in enumerate(rows):
-            if row.get("status","").upper() == "SUCCESS":
+            if row.get("status", "").upper() == "SUCCESS":
                 ip = row.get("_ip", "")
                 if ip:
                     ips.append({"ip": ip, "source": cfg["script_name"], "row": i,
-                                "time": row.get("_time",""), "worker": row.get("_worker","")})
+                                "time": row.get("_time", ""), "worker": row.get("_worker", "")})
+
     return ips
 
 
-# ── CAMPAIGN HISTORY ENDPOINTS ─────────────────────
+# ── EXISTING ENDPOINTS (unchanged) ────────────────
 
 @app.get("/api/campaign-history")
 def get_campaign_history(session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "view_history")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     with get_db() as conn:
         rows = conn.execute("SELECT * FROM campaign_history ORDER BY created_at DESC LIMIT 200").fetchall()
         result = []
@@ -1662,14 +868,13 @@ def get_campaign_history(session: Optional[str] = Cookie(None)):
 
 @app.get("/api/campaign-history/{hid}")
 def get_single_history(hid: str, session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "view_history")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     with get_db() as conn:
         r = conn.execute("SELECT * FROM campaign_history WHERE id=?", (hid,)).fetchone()
         if not r: return JSONResponse({"error": "Not found"}, status_code=404)
         workers_rows = conn.execute("SELECT * FROM campaign_history_workers WHERE history_id=?", (hid,)).fetchall()
-        log_rows     = conn.execute("SELECT time, level, worker_id, msg FROM campaign_history_logs WHERE history_id=? ORDER BY id ASC", (hid,)).fetchall()
+        log_rows = conn.execute("SELECT time, level, worker_id, msg FROM campaign_history_logs WHERE history_id=? ORDER BY id ASC", (hid,)).fetchall()
     return JSONResponse({
         "id": r["id"], "name": r["name"], "script": r["script"], "csv": r["csv_file"],
         "url": r["url"], "status": r["status"], "start_time": r["start_time"],
@@ -1682,9 +887,8 @@ def get_single_history(hid: str, session: Optional[str] = Cookie(None)):
 
 @app.get("/api/campaign-history/{hid}/logs")
 def get_history_logs(hid: str, session: Optional[str] = Cookie(None), level: str = "", last_n: int = 200):
-    user = require_permission(session, "view_history")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     query  = "SELECT time, level, worker_id, msg FROM campaign_history_logs WHERE history_id=?"
     params = [hid]
     if level:
@@ -1692,23 +896,20 @@ def get_history_logs(hid: str, session: Optional[str] = Cookie(None), level: str
     query += f" ORDER BY id DESC LIMIT {int(last_n)}"
     with get_db() as conn:
         rows = conn.execute(query, params).fetchall()
-    return JSONResponse([{"time": l["time"], "level": l["level"],
-                          "worker_id": l["worker_id"], "msg": l["msg"]} for l in reversed(rows)])
+    return JSONResponse([{"time": l["time"], "level": l["level"], "worker_id": l["worker_id"], "msg": l["msg"]} for l in reversed(rows)])
 
 @app.get("/api/campaign-history/{hid}/workers")
 def get_history_workers(hid: str, session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "view_history")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     with get_db() as conn:
         rows = conn.execute("SELECT * FROM campaign_history_workers WHERE history_id=? ORDER BY joined_at", (hid,)).fetchall()
     return JSONResponse([dict(r) for r in rows])
 
 @app.delete("/api/campaign-history")
 def clear_all_history(session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "manage_history")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     with db_lock:
         with get_db() as conn:
             conn.execute("DELETE FROM campaign_history_logs")
@@ -1720,9 +921,8 @@ def clear_all_history(session: Optional[str] = Cookie(None)):
 
 @app.delete("/api/campaign-history/{hid}")
 def delete_single_history(hid: str, session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "manage_history")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     with db_lock:
         with get_db() as conn:
             conn.execute("DELETE FROM campaign_history_logs WHERE history_id=?", (hid,))
@@ -1749,9 +949,8 @@ def add_history_log(hid: str, data: dict, x_worker_token: Optional[str] = Header
 
 @app.get("/api/campaign-history/active/id")
 def get_active_history_id(session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "view_history")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     return {"active_history_id": _get_active_history_id()}
 
 @app.post("/api/mark-row-complete")
@@ -1762,14 +961,64 @@ def mark_row_complete(data: dict):
     update_worker_stats_in_history(worker_id, rows_done, rows_failed)
     return {"ok": True}
 
+def login_html(err=""):
+    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>AutoPanel v2</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+*{{box-sizing:border-box;margin:0;padding:0;}}
+body{{background:#0f1117;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:'Segoe UI',sans-serif;}}
+.box{{background:#1a1d27;border:1px solid #2a2d3a;border-radius:16px;padding:40px;width:100%;max-width:380px;}}
+h2{{color:#fff;text-align:center;margin-bottom:6px;font-size:1.3rem;font-weight:500;}}
+p{{color:#888;text-align:center;margin-bottom:28px;font-size:13px;}}
+label{{color:#aaa;font-size:13px;display:block;margin-bottom:6px;}}
+input{{width:100%;background:#12151f;border:1px solid #2a2d3a;color:#fff;border-radius:8px;padding:10px 14px;font-size:14px;margin-bottom:14px;outline:none;}}
+input:focus{{border-color:#4a90e2;}}
+button{{width:100%;background:#4a90e2;color:#fff;border:none;border-radius:8px;padding:12px;font-size:15px;cursor:pointer;font-weight:500;}}
+.err{{color:#ff6b6b;text-align:center;margin-top:12px;font-size:13px;}}
+</style></head><body>
+<div class="box"><h2>AutoPanel v2</h2><p>Secure Admin Login</p>
+<form method="POST" action="/login">
+<label>Username</label><input name="username" type="text" autofocus>
+<label>Password</label><input name="password" type="password">
+<button type="submit">Login</button>
+</form>{"<div class='err'>Wrong credentials</div>" if err else ""}
+</div></body></html>"""
 
-# ── WORKERS ────────────────────────────────────────
+@app.get("/login")
+def login_page(): return HTMLResponse(login_html())
+
+@app.post("/login")
+def do_login(response: Response, username: str = Form(...), password: str = Form(...)):
+    if username == ADMIN_USER and verify_password(password, _admin_hash):
+        token = create_session()
+        resp  = RedirectResponse(url="/", status_code=302)
+        resp.set_cookie("session", token, httponly=True, secure=False, samesite="lax", max_age=SESSION_HOURS*3600)
+        return resp
+    return HTMLResponse(login_html(err=True))
+
+@app.get("/logout")
+def logout(session: Optional[str] = Cookie(None)):
+    if session:
+        with db_lock:
+            with get_db() as conn:
+                conn.execute("DELETE FROM sessions WHERE token=?", (session,))
+                conn.commit()
+    resp = RedirectResponse(url="/login", status_code=302)
+    resp.delete_cookie("session")
+    return resp
+
+@app.get("/")
+def dashboard(session: Optional[str] = Cookie(None)):
+    if not check_session(session):
+        return RedirectResponse(url="/login", status_code=302)
+    if os.path.exists("static/index.html"):
+        return HTMLResponse(open("static/index.html", encoding="utf-8").read())
+    return HTMLResponse("<h1>Place index.html in static/</h1>")
 
 @app.get("/api/workers")
 def get_workers(session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "view_workers")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     return JSONResponse(workers)
 
 @app.post("/api/worker/update")
@@ -1786,16 +1035,14 @@ def worker_update(data: dict, x_worker_token: Optional[str] = Header(None)):
 
 @app.get("/api/worker/{worker_id}/logs")
 def get_worker_logs(worker_id: str, session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "view_workers")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     return logs.get(worker_id, [])
 
 @app.get("/api/worker/{worker_id}/errors")
 def get_worker_errors(worker_id: str, session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "view_workers")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     return errors.get(worker_id, [])
 
 @app.get("/api/worker-token/{worker_id}")
@@ -1803,23 +1050,18 @@ def get_worker_token(worker_id: str):
     return {"token": make_worker_token(worker_id), "topic_prefix": TOPIC_PREFIX,
             "broker": MQTT_BROKER, "port": MQTT_PORT}
 
-
-# ── PC URLs ────────────────────────────────────────
-
 @app.get("/api/pc-urls")
 def get_pc_urls(session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "manage_workers")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     with get_db() as conn:
         rows = conn.execute("SELECT worker_id, url FROM pc_urls").fetchall()
     return {r["worker_id"]: r["url"] for r in rows}
 
 @app.post("/api/pc-url")
 def set_pc_url(data: dict, session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "manage_workers")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     worker_id = data.get("worker_id")
     url       = data.get("url", "")
     with db_lock:
@@ -1830,9 +1072,6 @@ def set_pc_url(data: dict, session: Optional[str] = Cookie(None)):
     send_cmd(worker_id, "set_url", {"url": url})
     return {"message": f"URL set for {worker_id}"}
 
-
-# ── SCRIPTS ────────────────────────────────────────
-
 @app.get("/api/version")
 def get_version():
     s = get_script()
@@ -1841,9 +1080,8 @@ def get_version():
 
 @app.get("/api/script/content")
 def get_script_content(session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "view_scripts")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     return {"content": get_script()["content"] or "# No script uploaded yet"}
 
 @app.get("/api/download-script")
@@ -1870,9 +1108,8 @@ def upload_script(
     requirements: str = Form(""),
     data_required: str = Form("")
 ):
-    user = require_permission(session, "upload_scripts")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     content = file.file.read().decode("utf-8", "replace")
     save_script({"version": version, "filename": file.filename, "content": content,
                  "requirements": requirements.strip(), "data_required": data_required,
@@ -1882,11 +1119,10 @@ def upload_script(
 
 @app.post("/api/script/save")
 def save_script_api(data: dict, session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "upload_scripts")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     s = get_script()
-    s.update({"content": data.get("content",""), "version": data.get("version","1.0"),
+    s.update({"content": data.get("content", ""), "version": data.get("version", "1.0"),
                "uploaded_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
     save_script(s)
     send_cmd("ALL", "script_updated", {"version": s["version"]})
@@ -1894,21 +1130,16 @@ def save_script_api(data: dict, session: Optional[str] = Cookie(None)):
 
 @app.get("/api/scripts/info")
 def script_info(session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "view_scripts")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     s = get_script()
     return {**s, "has_script": bool(s["content"]),
             "size": len(s["content"].encode("utf-8")) if s["content"] else 0}
 
-
-# ── CSV ────────────────────────────────────────────
-
 @app.post("/api/upload-csv")
 def upload_csv(session: Optional[str] = Cookie(None), file: UploadFile = File(...)):
-    user = require_permission(session, "upload_csv")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     content   = file.file.read()
     hist_path = f"csv_data/history/{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
     with open(hist_path, "wb") as f: f.write(content)
@@ -1928,7 +1159,7 @@ def get_next_row(worker_id: str):
         if not data: return {"row": None, "message": "CSV not uploaded"}
         ptr = state["row_pointer"]
         while ptr < len(data):
-            if data[ptr].get("status","").upper() not in ("SUCCESS","USED","FAILED"): break
+            if data[ptr].get("status", "").upper() not in ("SUCCESS", "USED", "FAILED"): break
             ptr += 1
         if ptr >= len(data): return {"row": None, "message": "Sab rows complete!"}
         row                  = data[ptr]
@@ -1940,7 +1171,7 @@ def get_next_row(worker_id: str):
 def mark_row(data: dict):
     worker_id = data.get("worker_id")
     row_index = data.get("row_index")
-    status    = data.get("status","SUCCESS")
+    status    = data.get("status", "SUCCESS")
     row_data  = data.get("row_data", {})
     with csv_rw_lock:
         state = get_csv_state()
@@ -1958,9 +1189,8 @@ def mark_row(data: dict):
 
 @app.get("/api/csv-status")
 def csv_status(session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "view_csv")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     state = get_csv_state()
     data  = state["data"]
     if not data: return {"total": 0, "done": 0, "pending": 0, "failed": 0, "rows": []}
@@ -1977,9 +1207,8 @@ def csv_status(session: Optional[str] = Cookie(None)):
 
 @app.get("/api/csv-history")
 def csv_history(session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "view_csv")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     files = []
     if os.path.exists("csv_data/history"):
         for f in os.listdir("csv_data/history"):
@@ -1988,21 +1217,16 @@ def csv_history(session: Optional[str] = Cookie(None)):
 
 @app.delete("/api/csv-history")
 def clear_csv_history(session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "manage_campaigns")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     for f in os.listdir("csv_data/history"):
         os.remove(f"csv_data/history/{f}")
     return {"message": "History cleared!"}
 
-
-# ── IMAGES ─────────────────────────────────────────
-
 @app.post("/api/upload-images")
 def upload_images(session: Optional[str] = Cookie(None), files: List[UploadFile] = File(...)):
-    user = require_permission(session, "manage_images")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     saved = []
     for file in files:
         with open(f"uploads/images/{file.filename}", "wb") as f:
@@ -2012,9 +1236,8 @@ def upload_images(session: Optional[str] = Cookie(None), files: List[UploadFile]
 
 @app.get("/api/images")
 def list_images(session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "view_images")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     if not os.path.exists("uploads/images"): return []
     result = []
     for f in os.listdir("uploads/images"):
@@ -2023,47 +1246,39 @@ def list_images(session: Optional[str] = Cookie(None)):
         with open(path, "rb") as fh:
             b64 = base64.b64encode(fh.read()).decode()
         ext  = f.rsplit(".",1)[-1].lower()
-        mime = {"jpg":"image/jpeg","jpeg":"image/jpeg","png":"image/png",
-                "webp":"image/webp","gif":"image/gif"}.get(ext,"image/jpeg")
+        mime = {"jpg":"image/jpeg","jpeg":"image/jpeg","png":"image/png","webp":"image/webp","gif":"image/gif"}.get(ext,"image/jpeg")
         result.append({"name": f, "size": os.path.getsize(path), "data": b64, "mime": mime})
     return result
 
 @app.delete("/api/images")
 def clear_images(session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "manage_images")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     for f in os.listdir("uploads/images"):
         os.remove(f"uploads/images/{f}")
     return {"message": "Images cleared!"}
 
 @app.delete("/api/images/{filename}")
 def delete_single_image(filename: str, session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "manage_images")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     path = f"uploads/images/{filename}"
     if os.path.exists(path):
         os.remove(path)
     return {"ok": True}
 
-
-# ── IP RECORDS ─────────────────────────────────────
-
 @app.post("/api/upload-ip-csv")
 def upload_ip_csv(session: Optional[str] = Cookie(None), file: UploadFile = File(...)):
-    user = require_permission(session, "manage_campaigns")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     with open(f"uploads/ip_data/{file.filename}", "wb") as f:
         shutil.copyfileobj(file.file, f)
     return {"message": f"{file.filename} uploaded!"}
 
 @app.get("/api/ip-records")
 def get_ip_records(session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "view_campaigns")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     records = []
     if os.path.exists("uploads/ip_data"):
         for fname in os.listdir("uploads/ip_data"):
@@ -2075,18 +1290,16 @@ def get_ip_records(session: Optional[str] = Cookie(None)):
 
 @app.delete("/api/ip-records")
 def clear_ip_records(session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "manage_campaigns")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     for f in os.listdir("uploads/ip_data"):
         os.remove(f"uploads/ip_data/{f}")
     return {"message": "IP records cleared!"}
 
 @app.get("/api/ip-records/download")
 def download_ip_records(session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "view_campaigns")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     records = []
     if os.path.exists("uploads/ip_data"):
         for fname in os.listdir("uploads/ip_data"):
@@ -2104,23 +1317,18 @@ def download_ip_records(session: Optional[str] = Cookie(None)):
     return FR(content=output.getvalue().encode("utf-8-sig"), media_type="text/csv",
               headers={"Content-Disposition": "attachment; filename=ip_records.csv"})
 
-
-# ── CAMPAIGNS ──────────────────────────────────────
-
 @app.get("/api/campaigns")
 def get_campaigns(session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "view_campaigns")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     with get_db() as conn:
         rows = conn.execute("SELECT * FROM campaigns ORDER BY created_at DESC").fetchall()
     return [dict(r) for r in rows]
 
 @app.post("/api/campaigns")
 def create_campaign(data: dict, session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "manage_campaigns")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     cid = secrets.token_hex(4)
     with db_lock:
         with get_db() as conn:
@@ -2134,9 +1342,8 @@ def create_campaign(data: dict, session: Optional[str] = Cookie(None)):
 
 @app.post("/api/campaigns/{cid}/start")
 def start_campaign(cid: str, session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "manage_campaigns")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     with db_lock:
         with get_db() as conn:
             camp = conn.execute("SELECT * FROM campaigns WHERE id=?", (cid,)).fetchone()
@@ -2151,9 +1358,8 @@ def start_campaign(cid: str, session: Optional[str] = Cookie(None)):
 
 @app.post("/api/campaigns/{cid}/stop")
 def stop_campaign(cid: str, session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "manage_campaigns")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     with db_lock:
         with get_db() as conn:
             conn.execute("UPDATE campaigns SET status='idle' WHERE id=?", (cid,))
@@ -2165,18 +1371,15 @@ def stop_campaign(cid: str, session: Optional[str] = Cookie(None)):
 
 @app.post("/api/send-command")
 def send_command(data: dict, session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "manage_workers")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     send_cmd(data.get("worker_id"), data.get("command"), data.get("extra", {}))
     return {"message": "Command sent"}
 
 @app.post("/api/broadcast")
 def broadcast(data: dict, session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "broadcast")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
-
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     cmd_name = data.get("command")
 
     if cmd_name == "stop":
@@ -2188,10 +1391,12 @@ def broadcast(data: dict, session: Optional[str] = Cookie(None)):
         existing_hid = _get_active_history_id()
         if not existing_hid:
             with get_db() as conn:
+                # Pehle active campaign dhundo
                 camp = conn.execute(
                     "SELECT * FROM campaigns WHERE status='active' ORDER BY created_at DESC LIMIT 1"
                 ).fetchone()
                 if not camp:
+                    # Active nahi mila to latest campaign lo
                     camp = conn.execute(
                         "SELECT * FROM campaigns ORDER BY created_at DESC LIMIT 1"
                     ).fetchone()
@@ -2200,12 +1405,20 @@ def broadcast(data: dict, session: Optional[str] = Cookie(None)):
                     with get_db() as conn:
                         conn.execute("UPDATE campaigns SET status='active' WHERE id=?", (camp["id"],))
                         conn.commit()
-                create_campaign_history(campaign_id=camp["id"], name=camp["name"] or "Manual Start",
-                                         script=camp["script"] or "—", csv_file=camp["csv_file"] or "—",
-                                         url=camp["url"] or "—")
+                create_campaign_history(
+                    campaign_id=camp["id"],
+                    name=camp["name"] or "Manual Start",
+                    script=camp["script"] or "—",
+                    csv_file=camp["csv_file"] or "—",
+                    url=camp["url"] or "—"
+                )
             else:
-                create_campaign_history(campaign_id="manual", name="Manual Start (No Campaign)",
-                                         script="—", csv_file="—", url="—")
+                # Koi campaign nahi — phir bhi history banao
+                create_campaign_history(
+                    campaign_id="manual",
+                    name="Manual Start (No Campaign)",
+                    script="—", csv_file="—", url="—"
+                )
 
     elif cmd_name == "restart":
         hid = _get_active_history_id()
@@ -2216,19 +1429,21 @@ def broadcast(data: dict, session: Optional[str] = Cookie(None)):
                 "SELECT * FROM campaigns ORDER BY created_at DESC LIMIT 1"
             ).fetchone()
         if camp:
-            create_campaign_history(campaign_id=camp["id"],
-                                     name=f"{camp['name'] or 'Campaign'} (Restart)",
-                                     script=camp["script"] or "—", csv_file=camp["csv_file"] or "—",
-                                     url=camp["url"] or "—")
+            create_campaign_history(
+                campaign_id=camp["id"],
+                name=f"{camp['name'] or 'Campaign'} (Restart)",
+                script=camp["script"] or "—",
+                csv_file=camp["csv_file"] or "—",
+                url=camp["url"] or "—"
+            )
 
     send_cmd("ALL", cmd_name)
     return {"message": "Broadcast sent"}
 
 @app.get("/api/stats")
 def get_stats(session: Optional[str] = Cookie(None)):
-    user = require_permission(session, "view_stats")
-    if not user:
-        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not check_session(session):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     v = list(workers.values())
     return {
         "total": len(v), "running": sum(1 for w in v if w.get("status") == "running"),
